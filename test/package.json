@@ -6,6 +6,7 @@
   "scripts": {
     "migration": "node migration.mjs",
     "tokens": "node tokens.mjs",
+    "degenerate": "node degenerate.mjs",
     "controls": "node controls.mjs",
     "pages": "node pages.mjs"
   },

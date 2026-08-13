@@ -8,9 +8,14 @@ loaded. These four cover what manual checking kept missing.
 cd test && npm install        # playwright only
 npm run migration             # the one that cannot be redone
 npm run tokens                # colour tokens, contrast, fade ladder
+npm run degenerate            # broken markup must not brick the page
 npm run controls              # nav controls, persistence, orthogonality
 npm run pages                 # every page type, logged out
 ```
+
+`migration`, `tokens` and `degenerate` need no network and are deterministic.
+`controls` and `pages` hit live Hacker News and can be rate limited — see the
+warning under `pages.mjs`.
 
 Screenshots land in `test/screenshots/`.
 
@@ -48,6 +53,29 @@ the load-bearing pairs.
 Two expected non-failures in its output: `border / bg` is a hairline, not text,
 and `fg-subtle / bg` is scoped to punctuation that carries no information — see
 the comment on `--hnes-fg-subtle` in `style.css`.
+
+## degenerate.mjs — broken markup must not brick the page
+
+The failure mode this extension is most exposed to. HNES hides the page at
+`document_start` and reveals it at the end of the rewrite, so anything that
+throws in between leaves the user on a blank Hacker News. The stylesheet's
+failsafe animation caps that at two seconds, but two seconds of blank followed
+by a half-rewritten page is still a bug.
+
+Every response is served by route interception, so there is no network and no
+rate limiting. The cases are the bodies HN actually returns when something is
+off: a 429 while you are being rate limited, an empty body, an expired-link
+page, a login form missing its submit button. Each one asserts the page is
+usable within the failsafe window — it deliberately does **not** assert the
+rewrite succeeded, because against markup this broken, doing nothing is the
+right outcome.
+
+Sampling happens at 1.2s, inside the 2s failsafe, so the check is that `hn.js`
+revealed the page itself rather than that the stylesheet bailed it out.
+
+This is a real regression test, not a smoke test: removing the guard in
+`doLogin` makes exactly the two `/login` cases fail with the original
+`TypeError`, and restoring it makes all eight pass.
 
 ## controls.mjs — the nav controls end to end
 
