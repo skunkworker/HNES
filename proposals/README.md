@@ -17,21 +17,34 @@ it correct. Verified against live `news.ycombinator.com` markup on 2026-07-31.
 
 | Phase | State |
 |---|---|
-| Phase 0 — data migration | **Implemented**, uncommitted |
-| Phase 1 — MV3 port | **Implemented**, uncommitted |
-| Stylesheet rebuild | **Implemented**, uncommitted (not in the original plan; added during the same pass) |
-| Phase 2 — markup drift | Partly done — the comment fade-class and vote-arrow breakages are fixed; the positional table walks are unaudited |
+| Phase 0 — data migration | **Implemented and committed**, tested end to end |
+| Phase 1 — MV3 port | **Implemented and committed** |
+| Stylesheet rebuild | **Implemented and committed** (not in the original plan; added during the same pass) |
+| Phase 2 — markup drift | Partly done — fade-class, vote arrows and the `/login` throw are fixed; the positional table walks are still unaudited |
 | Phase 3 — hygiene | Not started |
 | Design tracks | Proposals only |
 | Palette as a user option | **Implemented** — [`palettes.md`](./palettes.md) |
+| Tests | **Added** — see [`../test/README.md`](../test/README.md) |
 
-Implemented work is verified but **not committed** — 23/23 migration unit tests, 7/7
-in-browser migration, 11 page types loading clean, 0 horizontal overflow at
-1280/900/780/600/420/375, and WCAG AA or better on every measured text pair.
+The verification below is no longer a list to work through by hand; most of it runs.
+`test/migration.mjs` drives a real version-bump upgrade and checks the data survives,
+`test/tokens.mjs` checks all 110 contrast pair/palette/theme combinations, and
+`test/degenerate.mjs` checks that the bodies HN returns when something is off do not
+brick the page.
 
-Known gap: `/login` throws on an unguarded `$('form input[type=submit]').get(0)` when HN
-returns a body with no form. Pre-existing, not a regression — but it is the kind of thing
-Phase 2's try/catch hardening is for.
+Two things the tests will not tell you, and both still need a human:
+
+- **Logged-in flows** — voting, tagging, inline replies, `/threads` with real content.
+- **Firefox** — `about:debugging` → Load Temporary Add-on, and confirm the shared
+  manifest loads as an event page.
+
+Also unverified: `poll`, `user`, `threads` and `submit` against real bodies. Every
+automated attempt so far drew a 429, and a 429 body is not a page type — rerun
+`npm run pages` once HN's rate limiter has cooled rather than reading anything into it.
+
+Fixed since this document was written: `/login` threw on an unguarded
+`$('form input[type=submit]').get(0)` whenever HN returned a body with no form — which a
+429 is. It now returns early, and `test/degenerate.mjs` is the regression test.
 
 ---
 
