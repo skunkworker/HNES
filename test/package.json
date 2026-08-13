@@ -1,0 +1,15 @@
+{
+  "name": "hnes-tests",
+  "private": true,
+  "type": "module",
+  "description": "Browser-driven checks for the HNES extension. Not part of the packaged extension.",
+  "scripts": {
+    "migration": "node migration.mjs",
+    "tokens": "node tokens.mjs",
+    "controls": "node controls.mjs",
+    "pages": "node pages.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.0"
+  }
+}
