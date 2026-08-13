@@ -63,7 +63,7 @@ var InlineReply = {
       $(this).attr("value","Posting...");
       //Add loading spinner
       image = $('<img style="vertical-align:middle;margin-left:5px;"/>');
-      image.attr('src',chrome.extension.getURL("images/spin.gif"));
+      image.attr('src',chrome.runtime.getURL("images/spin.gif"));
       $(this).after(image);
       //Post
       InlineReply.postCommentTo(link, domain, text, $(this));
@@ -261,7 +261,7 @@ var CommentTracker = {
   }
 }
 
-var unvoteImg = chrome.extension.getURL("images/unvote.gif");
+var unvoteImg = chrome.runtime.getURL("images/unvote.gif");
 
 class HNComments {
   constructor(storyId) {
@@ -394,8 +394,14 @@ class HNComments {
         userColor = userFontEl ? userFontEl.getAttribute('color') : '',
         isNoob = userColor == "#3c963c",
         isOP = username == original_poster,
-        commentSpanEl = commentEl.querySelector('span'),
-        commentColor = commentSpanEl ? commentSpanEl.classList[0] : 'c00',
+        // HN's fade level lives on div.commtext as a cN class (c00 = normal,
+        // through cdd = heavily downvoted). This used to read classList[0] off
+        // the first <span> in the comment, which stopped working when HN moved
+        // the body from a span to div.commtext: it picked up whatever class the
+        // first inline element happened to carry, or nothing at all.
+        commentTextEl = commentEl.querySelector('.commtext'),
+        commentColor = (commentTextEl && Array.from(commentTextEl.classList)
+                          .find(cls => /^c[0-9a-f]{2}$/.test(cls))) || 'c00',
         isDead = t.querySelector('span.comhead').textContent.includes(' [dead] '),
         scoreEl = t.querySelector('span.score'),
         score = scoreEl ? scoreEl.textContent : '';
@@ -462,7 +468,7 @@ class HNComments {
 
     c.el = commentEl;
 
-    tagImageEl.src = chrome.extension.getURL('/images/tag.svg');
+    tagImageEl.src = chrome.runtime.getURL('/images/tag.svg');
 
     commentEl.id = c.id;
     commentEl.classList.add(`level-${oddOrEven}`);
@@ -907,27 +913,105 @@ var HN = {
       $('head').append('<link rel="stylesheet" type="text/css" href="news.css">');
     },
 
+    /*
+     * boot.js hides the page at document_start by putting .hnes-pending on <html>;
+     * dropping it here is what reveals the finished rewrite. The stylesheet also
+     * reveals the page on a timer, so a throw before this point costs the user some
+     * styling rather than a blank Hacker News.
+     */
+    reveal: function() {
+      document.documentElement.classList.remove('hnes-pending');
+    },
+
+    /*
+     * The nav's cycling preference toggles. Each descriptor is the whole
+     * definition of one toggle: values[0] is the unset state and clears the
+     * attribute, so "which values are real" is derived from the list rather
+     * than restated as a condition somewhere else. Adding a mode is one entry
+     * in `values` plus the matching CSS block — and the same list in boot.js,
+     * which runs as a separate content script and cannot read this one.
+     *
+     * theme:  auto -> light -> dark. 'auto' lets prefers-color-scheme decide;
+     *         the explicit modes pin color-scheme, which is what the
+     *         stylesheet's light-dark() tokens resolve against.
+     * view:   comfortable -> compact -> flow. compact shrinks the scale, flow
+     *         drops the card chrome and keeps the type readable.
+     */
+    MODES: [
+      { key: 'hnesTheme',   attr: 'data-hnes-theme',   label: 'theme',
+        title: 'Switch colour theme',
+        values: ['auto', 'light', 'dark'] },
+      { key: 'hnesDensity', attr: 'data-hnes-density', label: 'view',
+        title: 'Switch row density',
+        values: ['comfortable', 'compact', 'flow'] }
+    ],
+
+    applyMode: function(spec, value) {
+      var root = document.documentElement;
+      if (spec.values.indexOf(value) > 0) root.setAttribute(spec.attr, value);
+      else root.removeAttribute(spec.attr);
+    },
+
+    /*
+     * boot.js already applied both stored values before first paint, so the only
+     * job on load is labelling. One storage read covers every toggle: separate
+     * reads resolve in separate tasks, which cost an extra round trip and leave
+     * the toggles' left-to-right order up to whichever callback lands first.
+     */
+    initModeToggles: function() {
+      var nav = $('#top-navigation .nav-links').first();
+      if (!nav.length) return;
+
+      chrome.storage.local.get(HN.MODES.map(function(spec) { return spec.key; }), function(items) {
+        HN.MODES.forEach(function(spec) {
+          // Index rather than name as state — the name is one lookup away and
+          // values[0] is the fallback for anything unset or unrecognised.
+          var i = Math.max(spec.values.indexOf(items[spec.key]), 0),
+              link = $('<a/>').attr('href', 'javascript:void(0)').attr('title', spec.title),
+              wrap = $('<span/>').addClass('hnes-nav-toggle').text('|').append(link);
+
+          link.text(spec.label + ': ' + spec.values[i]);
+          link.click(function() {
+            i = (i + 1) % spec.values.length;
+            HN.applyMode(spec, spec.values[i]);
+            link.text(spec.label + ': ' + spec.values[i]);
+            HN.setLocalStorage(spec.key, spec.values[i]);
+          });
+
+          // Appended here so a toggle never appears unlabelled and inert.
+          nav.append(wrap);
+        });
+      });
+    },
+
+    /*
+     * These used to proxy to the background page's localStorage over sendMessage.
+     * Content scripts can reach chrome.storage.local directly, so the proxy is gone.
+     * (hckrnews.com still issues one read per list item — that is now a direct
+     * storage call rather than a message round trip, but it should be batched
+     * the way HNComments.loadMeta already does.)
+     *
+     * Keys and values are still coerced to strings because that is what localStorage
+     * did implicitly and the call sites depend on it: results are handed to JSON.parse,
+     * and 'update_profile' is compared against the literal string "false".
+     */
     getLocalStorage: function(key, callback) {
-      chrome.runtime.sendMessage({
-        method: "getLocalStorage",
-        key: key
-      }, callback);
+      var name = String(key);
+      chrome.storage.local.get(name, function(items) {
+        callback({ data: items[name] });
+      });
     },
 
     setLocalStorage: function(key, value) {
-      chrome.runtime.sendMessage(
-        { method: "setLocalStorage",
-          key: key,
-          value: value },
-        function(response) {
-        });
+      var item = {};
+      item[String(key)] = String(value);
+      chrome.storage.local.set(item);
     },
 
     getUserData: function(usernames, callback) {
-      chrome.runtime.sendMessage({
-        method: "getUserData",
-        usernames: usernames
-      }, callback);
+      chrome.storage.local.get(usernames.map(String), function(items) {
+        callback({ data: items });
+      });
     },
 
     doLogin: function() {
@@ -1291,7 +1375,9 @@ var HN = {
       var author_els = document.querySelectorAll('.author a');
       var usernames = Array.from(author_els).map( x => x.textContent );
 
-      HN.getUserData(usernames, response => {
+      // Threads repeat authors heavily; the loop below still needs the
+      // index-aligned list, but the storage read only needs each name once.
+      HN.getUserData([...new Set(usernames)], response => {
         if (!response) return;
         var userData = response.data;
         for (var i = 0; i < author_els.length; i++) {
@@ -1300,30 +1386,19 @@ var HN = {
               userInfo = userData[name];
 
           if (userInfo) {
-            if (typeof userInfo === "number") {
-              //Convert the legacy format.
-              //  Upvotes used to be saved in localStorage as (for example) etcet: '1', but are now etcet: '{"votes": 1}'.
-              //  This change in format was made so that tag information can be saved in the same location;
-              //  i.e. it will soon be saved as etcet: '{"votes": 1, "tag": "Creator of HNES"}'.
-              //
-              //  The conversion only needs to be done here, since this executes on page load,
-              //  which means that whatever username you see will have undergone the conversion to the new format.
-              userInfo = {'votes': userInfo};
-              HN.setLocalStorage(name, JSON.stringify(userInfo));
-              console.log('Converted legacy format for user', name);
+            // The bare-number legacy format is converted once during the MV2
+            // storage migration (normalizeLegacyValue in background.js), so
+            // everything arriving here is already '{"votes":n,"tag":…}'.
+            var info;
+            try {
+              info = JSON.parse(userInfo);
             }
-            else {
-              var info;
-              try {
-                info = JSON.parse(userInfo);
-              }
-              catch (e) {
-                info = {}
-              }
-              // display user tag and score
-              if (info.tag) HN.displayUserTag(author_el, info.tag || '');
-              if (info.votes) HN.displayUserScore(author_el, info.votes);
+            catch (e) {
+              info = {}
             }
+            // display user tag and score
+            if (info.tag) HN.displayUserTag(author_el, info.tag || '');
+            if (info.votes) HN.displayUserScore(author_el, info.votes);
           }
         };
       });
@@ -1734,11 +1809,17 @@ var HN = {
     },
 
     setTopColor: function(){
-      var topcolor = document.getElementById("header").children[0].getAttribute("bgcolor");
-      if(topcolor.toLowerCase() != '#ff6600') {
+      // HN tints the header on special days. The dropdowns no longer follow it —
+      // they are menu surfaces floating over the page now, not extensions of the
+      // header, and inheriting the tint is what made them read as orange smears.
+      // (The old .nav-drop-down a:hover rule was a no-op anyway; jQuery cannot
+      // set styles on a pseudo-class.)
+      var header = document.getElementById("header"),
+          headerCell = header && header.children[0],
+          topcolor = headerCell && headerCell.getAttribute("bgcolor");
+
+      if (topcolor && topcolor.toLowerCase() != '#ff6600') {
         $('#header').css('background-color', topcolor);
-        $('.nav-drop-down').css('background-color', topcolor);
-        $('.nav-drop-down a:hover').css('background-color', topcolor);
       }
     },
 
@@ -1894,7 +1975,7 @@ var HN = {
 //show new comment count on hckrnews.com
 if (window.location.host == "hckrnews.com") {
   $('ul.entries li').each(function() {
-    chrome.runtime.sendMessage({method: "getLocalStorage", key: Number($(this).attr('id'))}, function(response) {
+    HN.getLocalStorage($(this).attr('id'), function(response) {
       if (response.data != undefined) {
         var data = JSON.parse(response.data);
         var id = data.id;
@@ -1940,6 +2021,7 @@ else {
       });
     }
 
-    $('body').css('visibility', 'visible');
+    HN.initModeToggles();
+    HN.reveal();
   });
 }

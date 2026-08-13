@@ -1,15 +1,18 @@
 {
     "name": "Hacker News Enhancement Suite",
     "short_name": "HNES",
-    "version": "1.6.0.3",
+    "version": "2.0.0",
     "description": "Hacker News Enhanced.",
-    "manifest_version": 2,
+    "manifest_version": 3,
+    "minimum_chrome_version": "123",
     "background": {
+      "service_worker": "background.js",
       "scripts": ["background.js"]
     },
     "permissions": [
       "storage",
-      "unlimitedStorage"
+      "unlimitedStorage",
+      "offscreen"
     ],
     "icons": {
         "16" : "images/icon-16.png",
@@ -19,45 +22,39 @@
     "content_scripts": [
       { "run_at": "document_start",
         "css": [ "style.css" ],
+        "js": [ "js/boot.js" ],
         "matches": [
-          "http://news.ycombinator.com/*",
           "https://news.ycombinator.com/*",
-          "http://news.ycombinator.net/*",
-          "https://news.ycombinator.net/*",
-          "http://hackerne.ws/*",
-          "https://hackerne.ws/*",
-          "http://news.ycombinator.org/*",
-          "https://news.ycombinator.org/*"]
+          "https://hackerne.ws/*"]
       },
       {
         "run_at": "document_end",
-        "all_frames": true,
-        "css": [ "style.css" ],
         "js": [
           "js/jquery-3.2.1.min.js",
           "js/linkify/jquery.linkify-1.0.js",
           "js/linkify/plugins/jquery.linkify-1.0-twitter.js",
           "js/hn.js"],
         "matches": [
-          "http://news.ycombinator.com/*",
           "https://news.ycombinator.com/*",
-          "http://news.ycombinator.net/*",
-          "https://news.ycombinator.net/*",
-          "http://hackerne.ws/*",
-          "https://hackerne.ws/*",
-          "http://news.ycombinator.org/*",
-          "https://news.ycombinator.org/*"]
+          "https://hackerne.ws/*"]
       },
       {
-        "matches": ["http://hckrnews.com/*"],
+        "matches": ["https://hckrnews.com/*"],
         "run_at": "document_end",
         "js": ["js/jquery-3.2.1.min.js", "js/hn.js"]
       }
     ],
     "web_accessible_resources": [
-      "images/spin.gif",
-      "images/unvote.gif",
-      "images/tag.svg",
-      "templates/comment.html"
+      {
+        "resources": [
+          "images/spin.gif",
+          "images/unvote.gif",
+          "images/tag.svg"
+        ],
+        "matches": [
+          "https://news.ycombinator.com/*",
+          "https://hackerne.ws/*"
+        ]
+      }
     ]
 }
