@@ -106,6 +106,15 @@
   --hnes-surface-alt:   color-mix(in oklab, var(--hnes-bg) 61%, var(--hnes-border));
   --hnes-surface-hi:    color-mix(in oklab, var(--hnes-bg) 31%, var(--hnes-border));
 
+  /*
+   * Not for words. This lands around 2.8:1 on the page in light mode, against
+   * the 4.5:1 WCAG floor for text at the sizes it gets used at, so it is scoped
+   * to things that carry no information: the "(" and ")" around a domain, the
+   * "|" and "[ ]" between actions, the tooltip arrow, the voted dash. Anything
+   * a reader actually reads uses --hnes-fg-muted, which clears AA in every
+   * palette. Reaching 4.5 here would put it on top of --hnes-fg-muted and there
+   * would be no second step left.
+   */
   --hnes-fg-subtle:     color-mix(in oklab, var(--hnes-fg-muted) 61%, var(--hnes-border));
   /* Maximum contrast, not a step on any ramp — the one text token that is
      deliberately outside the palette. */
@@ -823,10 +832,13 @@ td #more.link-highlight {
    =========================================================================== */
 
 .submitter { margin-left: var(--hnes-gap-1); }
+/* The words here — "points by", "ago" — are real text at 12px, so they take the
+   muted step. The links in this line are already muted (below); only the
+   punctuation between them stays subtle. */
 html body .subtext,
 html body .subtext td,
 html body .submitter {
-  color: var(--hnes-fg-subtle);
+  color: var(--hnes-fg-muted);
   font-family: var(--hnes-font);
   font-size: var(--hnes-size-xs) !important;
   padding-bottom: var(--hnes-gap-3);
@@ -855,12 +867,17 @@ html body .default {
 .hnes-actions {
   margin-left: .5em;
   font-size: var(--hnes-size-xs);
-  color: var(--hnes-fg-subtle);
+  color: var(--hnes-fg-muted);
 }
+/* The frame around the actions is punctuation, so it keeps the subtle step
+   while the words it wraps take the muted one — otherwise moving the container
+   would drag the brackets up with it and flatten the two apart. */
 .hnes-actions a:after {
   content: " | ";
   color: var(--hnes-fg-subtle);
 }
+.hnes-actions:before,
+.hnes-actions:after { color: var(--hnes-fg-subtle); }
 .hnes-actions a:last-child:after { content: ""; }
 .hnes-actions:before { content: "[ "; }
 .hnes-actions:after  { content: " ]"; }
@@ -1329,7 +1346,7 @@ form[action="//hn.algolia.com/"] { margin: 0 auto; }
 .reply_form { width: 100%; max-width: 640px; }
 .reply_form input[type="submit"] { margin: 3px; }
 a[href^="reply"]:visited { color: var(--hnes-link); }
-.input-help { color: var(--hnes-fg-subtle); font-size: var(--hnes-size-xs); }
+.input-help { color: var(--hnes-fg-muted); font-size: var(--hnes-size-xs); }
 
 /* Submit page */
 form[action="/r"] table { width: 100%; max-width: 440px; }
@@ -1442,6 +1459,8 @@ body#login-body tr#content form td:first-child {
 
  /* news.css sets .yclinks{font-size:8pt}; the colour below was already armored
     with !important but the font-size next to it was not. */
+/* Colour lands on the " | " text nodes only — every word in here is a link and
+   takes the link colour — so this one stays subtle. */
 html body .yclinks {
   display: block;
   padding: var(--hnes-gap-3);

@@ -1112,6 +1112,21 @@ var HN = {
     },
 
     doLogin: function() {
+      /*
+       * HN serves this URL with no form more often than it looks: a 429 while
+       * you are being rate limited, an error body, an already-logged-in
+       * redirect. Everything below assumes the form and its submit button, so
+       * bail before touching the document rather than rewriting half of it.
+       *
+       * Reaching the deref used to throw, which stopped hn.js before reveal()
+       * and left the page blank until the stylesheet's failsafe animation fired
+       * two seconds later — so the symptom was a long blank page followed by a
+       * half-built one, on the page where a user is least able to guess why.
+       * Same early-return shape doCreateAccount already uses below.
+       */
+      var submitButton = $('form input[type="submit"]').get(0);
+      if (!submitButton) return;
+
       $('body').attr('id', 'login-body');
       document.title = "Login | Hacker News";
 
@@ -1128,7 +1143,7 @@ var HN = {
 
       // remove login header, submit button (will be re-added later)
       $('body > b:first').remove();
-      var buttonHtml = $('form input[type="submit"]').get(0).outerHTML;
+      var buttonHtml = submitButton.outerHTML;
       $('form:first input[type=submit]').remove();
 
       var headerHtml = '<tr id="header"><td bgcolor="#ff6600"><table border="0" cellpadding="0" cellspacing="0" width="100%" style="padding:2px"><tbody><tr><td><a href="http://ycombinator.com"><img src="y18.gif" width="18" height="18" style="border:1px #ffffff solid;"></a></td><td><span class="pagetop" id="top-navigation"><span class="nav-links"><span><a href="/news" class="top" title="Top stories">top</a>|</span><span><a href="/newest" class="new" title="Newest stories">new</a>|</span><span><a href="/best" class="best" title="Best stories">best</a></span></div></span></span></td></tr></tbody></table></td></tr>';
@@ -1173,9 +1188,14 @@ var HN = {
 
       // rebuild title/form inside the existing table
       $('tr#content > td:last').append(formContent);
-      var buttonHtml = $('#register-form > input[type="submit"]').get(0).outerHTML;
-      $('#register-form > input[type="submit"]').remove();
-      $('#register-form tr:last').after('<tr><td></td><td>' + buttonHtml + '</td></tr>');
+
+      // Same reason as doLogin: a create-account form without a submit button
+      // is markup we do not recognise, and the heading is still worth adding.
+      var submitButton = $('#register-form > input[type="submit"]').get(0);
+      if (submitButton) {
+        $('#register-form > input[type="submit"]').remove();
+        $('#register-form tr:last').after('<tr><td></td><td>' + submitButton.outerHTML + '</td></tr>');
+      }
       $('#register-form').before('<h1>Create Account</h1>');
     },
 
