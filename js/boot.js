@@ -7,10 +7,10 @@
  *    while hn.js rewrites it. Putting the flag here rather than in CSS means a
  *    page where the content script never runs is never hidden at all, and the
  *    stylesheet's failsafe animation reveals the page even if hn.js throws.
- *  - Apply the saved theme override and view density. The storage read is async,
+ *  - Apply the saved theme, view density and palette. The storage read is async,
  *    so it can land after paint; that is harmless because the body is still
- *    hidden, and an unset theme just falls through to prefers-color-scheme
- *    while an unset density falls through to comfortable.
+ *    hidden, and an unset value falls through to the stylesheet's own default —
+ *    prefers-color-scheme for theme, comfortable for density, classic for palette.
  */
 (function () {
   var root = document.documentElement;
@@ -27,7 +27,8 @@
    */
   var MODES = [
     { key: 'hnesTheme',   attr: 'data-hnes-theme',   values: ['auto', 'light', 'dark'] },
-    { key: 'hnesDensity', attr: 'data-hnes-density', values: ['comfortable', 'compact', 'flow'] }
+    { key: 'hnesDensity', attr: 'data-hnes-density', values: ['comfortable', 'compact', 'flow'] },
+    { key: 'hnesPalette', attr: 'data-hnes-palette', values: ['classic', 'newsprint', 'ember', 'slate', 'letterpress'] }
   ];
 
   try {

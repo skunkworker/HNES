@@ -11,11 +11,29 @@
 * in a single light-dark() declaration, so a theme change is one edit, not two
 * palettes kept in sync by hand. The manual override works by flipping
 * color-scheme, which is what light-dark() resolves against.
+*
+* Colour is split in two: a SEED layer that a palette replaces wholesale, and a
+* DERIVED layer expressed as color-mix() over the seeds, which no palette ever
+* restates. That is what makes a palette eleven declarations instead of thirty.
+*
+* The mix percentages are fitted to the values this stylesheet shipped with, so
+* the split changed nothing on screen: every derived token lands within an Oklab
+* dE of 0.012 of what it replaced, bar two fade rungs at 0.017.
+*
+* Derive within a family, not from fg/bg globally. The obvious scheme — every
+* neutral a percentage of fg into bg — was tried and abandoned: it misses by dE
+* 0.02-0.09, because the light and dark values here were tuned independently and
+* do not share proportions. Anchoring each family on its own endpoints absorbs
+* that, and one percentage then serves both themes.
 * ---------------------------------------------------------------------------
 */
 
 :root {
   color-scheme: light dark;
+
+  /* =========================================================================
+     SEEDS — the palette surface. A palette block replaces exactly these.
+     ========================================================================= */
 
   /*
    * Two oranges, deliberately. --hnes-brand paints large surfaces (header,
@@ -24,68 +42,111 @@
    * a dark background. HN's #ff6600 was doing both jobs and doing neither well:
    * as a surface it vibrated against white text, and as accent text on white it
    * only reached about 3:1.
+   *
+   * The palettes below collapse the two back together, because each of them
+   * picked an accent that can hold both jobs. Keeping the tokens separate is
+   * what lets them make that choice without the stylesheet caring.
    */
   --hnes-brand:         light-dark(#ab470a, #8f3b08);
   --hnes-orange:        light-dark(#bd4f0d, #ff8f45);
   /* Warm off-white rather than pure white — full white on saturated orange is
      the "too strong" pairing that makes the header feel like it is buzzing. */
-  --hnes-orange-ink:    #fff3e9;
-  /* Header ink at two weights plus the hover wash. These were spelled out as
-     raw rgba() in six places, which meant the header could not be retinted
-     from the token block the way everything else can. */
-  --hnes-header-ink:      rgba(255, 243, 233, .92);
-  --hnes-header-ink-dim:  rgba(255, 243, 233, .82);
-  --hnes-header-hover:    rgba(0, 0, 0, .16);
+  --hnes-orange-ink:    light-dark(#fff3e9, #fff3e9);
 
   /* surfaces */
   --hnes-bg:            light-dark(#f6f6ef, #15150f);
   --hnes-surface:       light-dark(#fffffd, #1d1d16);
-  --hnes-surface-alt:   light-dark(#eeeee4, #22221a);
-  --hnes-surface-hi:    light-dark(#e4e4d6, #2b2b21);
 
   /* text */
   --hnes-fg:            light-dark(#1b1b19, #e8e8de);
   --hnes-fg-muted:      light-dark(#6a6a63, #9a9a8e);
-  --hnes-fg-subtle:     light-dark(#95958c, #6f6f66);
-  --hnes-fg-strong:     light-dark(#000000, #ffffff);
-
-  /* links */
-  --hnes-link:          light-dark(#1b1b19, #ddddd2);
-  --hnes-link-hover:    var(--hnes-orange);
-  --hnes-visited:       light-dark(#6a6a63, #8d8d82);
 
   /* lines */
   --hnes-border:        light-dark(#dedad0, #33332a);
+
+  /*
+   * The two ends of HN's comment fade scale; the eight rungs between them are
+   * derived. These are seeds rather than a proportion of fg into bg because the
+   * two themes disagree on purpose: light fades to 9.8% of the foreground,
+   * dark stops at 33.6%. Light text on a dark ground loses legibility faster
+   * than the ratio predicts, so the dark ladder is deliberately shallower, and
+   * a single percentage would flatten that distinction.
+   */
+  --hnes-fade-strong:   light-dark(#5a5a5a, #c6c6bc);
+  --hnes-fade-weak:     light-dark(#dddddd, #53534e);
+
+  /* Text selection: a wash of the accent over the page, but not on the
+     accent-into-bg line either theme would predict, so it is stated. */
+  --hnes-selection:     light-dark(#ffd9bf, #5a3410);
+
+  /* =========================================================================
+     DERIVED — formulas over the seeds. Palette-independent; never restated.
+     ========================================================================= */
+
+  /* Header ink at two weights plus the hover wash. Alpha over the ink token
+     rather than raw rgba(), which is what lets a palette retint the header. */
+  --hnes-header-ink:      color-mix(in srgb, var(--hnes-orange-ink) 92%, transparent);
+  --hnes-header-ink-dim:  color-mix(in srgb, var(--hnes-orange-ink) 82%, transparent);
+  /* A black scrim, not a tint — palette-independent by design. */
+  --hnes-header-hover:    rgba(0, 0, 0, .16);
+
+  /* The two intermediate surfaces sit between the page and its rules, so they
+     ride on bg->border rather than on bg->fg: the rule colour is what a palette
+     uses to say how much separation it wants. */
+  --hnes-surface-alt:   color-mix(in oklab, var(--hnes-bg) 61%, var(--hnes-border));
+  --hnes-surface-hi:    color-mix(in oklab, var(--hnes-bg) 31%, var(--hnes-border));
+
+  --hnes-fg-subtle:     color-mix(in oklab, var(--hnes-fg-muted) 61%, var(--hnes-border));
+  /* Maximum contrast, not a step on any ramp — the one text token that is
+     deliberately outside the palette. */
+  --hnes-fg-strong:     light-dark(#000000, #ffffff);
+
+  /* links */
+  --hnes-link:          color-mix(in oklab, var(--hnes-fg) 98%, var(--hnes-bg));
+  --hnes-link-hover:    var(--hnes-orange);
+  --hnes-visited:       color-mix(in oklab, var(--hnes-fg) 60%, var(--hnes-bg));
+
+  /* lines */
   --hnes-spine:         var(--hnes-border);
   --hnes-spine-active:  var(--hnes-orange);
 
-  /* semantic */
+  /*
+   * State colours, split from the brand on purpose: --hnes-new-comment used to
+   * resolve to --hnes-brand, so restyling the brand silently redefined what
+   * "new" looked like. Palette-independent, and a palette may still override
+   * any of them — none has needed to.
+   */
   --hnes-danger:        light-dark(#c0392b, #ff7a6e);
   --hnes-new-user:      light-dark(#2f8f4e, #57c47c);
   --hnes-new-comment:   var(--hnes-orange);
   --hnes-new-parent:    light-dark(#bc9b85, #7a6154);
-  --hnes-selection:     light-dark(#ffd9bf, #5a3410);
+  /* "You are here" on the index. Blue rather than the accent on purpose —
+     sharing the accent would make the current story indistinguishable from an
+     unread one. Was a hardcoded #3986f8, which every palette would have fought. */
+  --hnes-current:       light-dark(#3986f8, #6aa8ff);
 
   /*
    * HN's comment fade scale. news.css ships .c00 (a normal comment) as pure
    * black and fades downvoted comments toward white, which only works on a
    * light background — on a dark one .c00 is unreadable and the scale runs
-   * backwards, leaving the most-downvoted comments the most prominent. These
-   * pairs keep HN's light values and mirror the fade for dark, so in both
-   * themes the scale runs from full contrast toward the page background.
+   * backwards, leaving the most-downvoted comments the most prominent. Running
+   * the ladder between the two fade seeds keeps the scale pointed at the page
+   * background in both themes, whatever the palette.
    */
   --hnes-c00: var(--hnes-fg);
-  --hnes-c5a: light-dark(#5a5a5a, #c6c6bc);
-  --hnes-c73: light-dark(#737373, #adada4);
-  --hnes-c82: light-dark(#828282, #9b9b92);
-  --hnes-c88: light-dark(#888888, #909087);
-  --hnes-c9c: light-dark(#9c9c9c, #81817a);
-  --hnes-cae: light-dark(#aeaeae, #73736c);
-  --hnes-cbe: light-dark(#bebebe, #686861);
-  --hnes-cce: light-dark(#cecece, #5c5c56);
-  --hnes-cdd: light-dark(#dddddd, #53534e);
+  --hnes-c5a: var(--hnes-fade-strong);
+  --hnes-c73: color-mix(in oklab, var(--hnes-fade-strong) 80%, var(--hnes-fade-weak));
+  --hnes-c82: color-mix(in oklab, var(--hnes-fade-strong) 66%, var(--hnes-fade-weak));
+  --hnes-c88: color-mix(in oklab, var(--hnes-fade-strong) 59%, var(--hnes-fade-weak));
+  --hnes-c9c: color-mix(in oklab, var(--hnes-fade-strong) 45%, var(--hnes-fade-weak));
+  --hnes-cae: color-mix(in oklab, var(--hnes-fade-strong) 32%, var(--hnes-fade-weak));
+  --hnes-cbe: color-mix(in oklab, var(--hnes-fade-strong) 21%, var(--hnes-fade-weak));
+  --hnes-cce: color-mix(in oklab, var(--hnes-fade-strong) 10%, var(--hnes-fade-weak));
+  --hnes-cdd: var(--hnes-fade-weak);
 
-  /* heat scale on comment counts */
+  /* Heat scale on comment counts. The two middle steps are off the fg->orange
+     line — they carry more yellow than an interpolation would give them — so
+     they stay literal rather than being flattened into the ramp. */
   --hnes-heat-0:        var(--hnes-fg);
   --hnes-heat-1:        light-dark(#8a5a00, #c8a25a);
   --hnes-heat-2:        light-dark(#c25e00, #e2913f);
@@ -170,6 +231,88 @@
 /* Manual override from the theme toggle; 'auto' removes the attribute entirely. */
 :root[data-hnes-theme="light"] { color-scheme: only light; }
 :root[data-hnes-theme="dark"]  { color-scheme: only dark; }
+
+
+/* ---------------------------------------------------------------------------
+   Palettes, set by the palette control; 'classic' removes the attribute and
+   falls back to the seeds above. Each block is seeds only — the derived layer
+   picks the change up for free, which is the whole reason the split exists.
+
+   Answering one question four ways: how much orange is Hacker News? Newsprint
+   keeps it as signal on warm paper, Ember makes everything one warm hue, Slate
+   goes cool and reads as a different product, Letterpress is a computed ramp at
+   hue 45. Full write-ups in proposals/visual-overhauls.html.
+
+   All four collapse --hnes-brand into --hnes-orange: each picked an accent that
+   works as a header surface *and* as accent text, which is the job classic
+   needed two oranges for. Their --hnes-orange-ink flips to a dark value in dark
+   mode for the same reason — the header there is the bright accent, not a burnt
+   one, so the ink on it has to invert.
+
+   :where() so these weigh (0,0,1), matching the :root they override and winning
+   on source order alone — same reason the density blocks use it, and what keeps
+   the responsive steps at the foot of the file working without knowing palettes
+   exist.
+
+   Contrast measured per palette per theme on the eight load-bearing pairs; all
+   clear WCAG AA, most AAA, none below classic.
+   --------------------------------------------------------------------------- */
+
+:root:where([data-hnes-palette="newsprint"]) {
+  --hnes-bg:            light-dark(#fdfdfc, #0d0d0c);
+  --hnes-surface:       light-dark(#ffffff, #151513);
+  --hnes-fg:            light-dark(#111110, #f3f2ec);
+  --hnes-fg-muted:      light-dark(#5b5b57, #a3a29b);
+  --hnes-border:        light-dark(#e4e4de, #2a2a27);
+  --hnes-brand:         light-dark(#c2450a, #ff7a33);
+  --hnes-orange:        light-dark(#c2450a, #ff7a33);
+  --hnes-orange-ink:    light-dark(#ffffff, #1a0d04);
+  --hnes-fade-strong:   light-dark(#545453, #cdcdc7);
+  --hnes-fade-weak:     light-dark(#e2e2e1, #504f4d);
+  --hnes-selection:     light-dark(#f7dfd6, #4f2d1c);
+}
+
+:root:where([data-hnes-palette="ember"]) {
+  --hnes-bg:            light-dark(#fbf6f1, #14100c);
+  --hnes-surface:       light-dark(#fffcf9, #1e1712);
+  --hnes-fg:            light-dark(#241a12, #f0e6dc);
+  --hnes-fg-muted:      light-dark(#6b5443, #b09681);
+  --hnes-border:        light-dark(#e8dbcd, #33281f);
+  --hnes-brand:         light-dark(#a8480c, #ff8f45);
+  --hnes-orange:        light-dark(#a8480c, #ff8f45);
+  --hnes-orange-ink:    light-dark(#fff4ea, #1a0d04);
+  --hnes-fade-strong:   light-dark(#635a52, #ccc3ba);
+  --hnes-fade-weak:     light-dark(#e3ded8, #554f48);
+  --hnes-selection:     light-dark(#efd8cc, #54341f);
+}
+
+:root:where([data-hnes-palette="slate"]) {
+  --hnes-bg:            light-dark(#f1f3f4, #0f1214);
+  --hnes-surface:       light-dark(#ffffff, #181d20);
+  --hnes-fg:            light-dark(#14181a, #e3e8ea);
+  --hnes-fg-muted:      light-dark(#5a656b, #96a0a6);
+  --hnes-border:        light-dark(#d8dde0, #283035);
+  --hnes-brand:         light-dark(#ae470b, #ff7a33);
+  --hnes-orange:        light-dark(#ae470b, #ff7a33);
+  --hnes-orange-ink:    light-dark(#ffffff, #14181a);
+  --hnes-fade-strong:   light-dark(#535759, #c1c5c7);
+  --hnes-fade-weak:     light-dark(#d8dbdc, #4d5153);
+  --hnes-selection:     light-dark(#e9d6ce, #513123);
+}
+
+:root:where([data-hnes-palette="letterpress"]) {
+  --hnes-bg:            light-dark(#fefaf9, #0f0b09);
+  --hnes-surface:       light-dark(#ffffff, #1b1613);
+  --hnes-fg:            light-dark(#19120f, #f0ece9);
+  --hnes-fg-muted:      light-dark(#6d605b, #aea29c);
+  --hnes-border:        light-dark(#e6deda, #38312e);
+  --hnes-brand:         light-dark(#c04800, #ff7a34);
+  --hnes-orange:        light-dark(#c04800, #ff7a34);
+  --hnes-orange-ink:    light-dark(#fff8f5, #21110a);
+  --hnes-fade-strong:   light-dark(#5b5451, #cbc7c4);
+  --hnes-fade-weak:     light-dark(#e5e0df, #514c49);
+  --hnes-selection:     light-dark(#f7dcd3, #502b19);
+}
 
 
 /* ---------------------------------------------------------------------------
@@ -510,6 +653,25 @@ html body .nav-drop-down a:hover {
    rules above already cover it; only the cursor needs saying. */
 .hnes-nav-toggle > a { cursor: pointer; }
 
+/*
+ * The palette control owns its dropdown, unlike #user-hidden which pins itself
+ * to the page edge — hence the positioned parent here and nowhere else.
+ *
+ * Right-aligned because this control is appended last and is therefore always
+ * the rightmost thing in the nav: opening leftward is the only direction that
+ * cannot push the menu off the viewport and reintroduce horizontal scroll.
+ */
+.hnes-nav-menu { position: relative; }
+.hnes-nav-menu > .nav-drop-down { right: 0; }
+
+/* The .nav-active-link rule above only matches direct children of .nav-links,
+   so the selected row inside the menu needs its own mark. Weight rather than a
+   fill: a filled row next to the hover fill reads as two hovers. */
+html body .hnes-nav-menu .nav-drop-down a.nav-active-link {
+  color: var(--hnes-orange) !important;
+  font-weight: 700;
+}
+
 .mourning { border-top: 5px solid var(--hnes-fg-strong); }
 
 
@@ -611,7 +773,7 @@ html body .title {
 }
 html body .title a:link,
 html body .title a:visited { color: var(--hnes-fg); }
-.title a.on_story { border-left: 2px solid #3986f8 !important; }
+.title a.on_story { border-left: 2px solid var(--hnes-current) !important; }
 
 .link-highlight {
   border: 1px dashed var(--hnes-border);

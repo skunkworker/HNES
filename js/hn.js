@@ -924,26 +924,37 @@ var HN = {
     },
 
     /*
-     * The nav's cycling preference toggles. Each descriptor is the whole
-     * definition of one toggle: values[0] is the unset state and clears the
-     * attribute, so "which values are real" is derived from the list rather
-     * than restated as a condition somewhere else. Adding a mode is one entry
-     * in `values` plus the matching CSS block — and the same list in boot.js,
-     * which runs as a separate content script and cannot read this one.
+     * The nav's preference controls. Each descriptor is the whole definition of
+     * one control: values[0] is the unset state and clears the attribute, so
+     * "which values are real" is derived from the list rather than restated as a
+     * condition somewhere else. Adding a mode is one entry in `values` plus the
+     * matching CSS block — and the same list in boot.js, which runs as a
+     * separate content script and cannot read this one.
      *
-     * theme:  auto -> light -> dark. 'auto' lets prefers-color-scheme decide;
-     *         the explicit modes pin color-scheme, which is what the
-     *         stylesheet's light-dark() tokens resolve against.
-     * view:   comfortable -> compact -> flow. compact shrinks the scale, flow
-     *         drops the card chrome and keeps the type readable.
+     * `ui` picks the control, not the behaviour: both render from the same
+     * descriptor and write the same attribute and storage key. Cycling is right
+     * up to three values and stops being right past that, which is why palette
+     * is a menu — five values is four clicks to reach the last one.
+     *
+     * theme:   auto -> light -> dark. 'auto' lets prefers-color-scheme decide;
+     *          the explicit modes pin color-scheme, which is what the
+     *          stylesheet's light-dark() tokens resolve against.
+     * view:    comfortable -> compact -> flow. compact shrinks the scale, flow
+     *          drops the card chrome and keeps the type readable.
+     * palette: swaps the stylesheet's colour seeds. Orthogonal to the other two
+     *          by construction — palettes own colour tokens, view owns geometry
+     *          tokens, and the sets do not intersect.
      */
     MODES: [
-      { key: 'hnesTheme',   attr: 'data-hnes-theme',   label: 'theme',
+      { key: 'hnesTheme',   attr: 'data-hnes-theme',   label: 'theme', ui: 'cycle',
         title: 'Switch colour theme',
         values: ['auto', 'light', 'dark'] },
-      { key: 'hnesDensity', attr: 'data-hnes-density', label: 'view',
+      { key: 'hnesDensity', attr: 'data-hnes-density', label: 'view', ui: 'cycle',
         title: 'Switch row density',
-        values: ['comfortable', 'compact', 'flow'] }
+        values: ['comfortable', 'compact', 'flow'] },
+      { key: 'hnesPalette', attr: 'data-hnes-palette', label: 'palette', ui: 'menu',
+        title: 'Switch colour palette',
+        values: ['classic', 'newsprint', 'ember', 'slate', 'letterpress'] }
     ],
 
     applyMode: function(spec, value) {
@@ -952,11 +963,19 @@ var HN = {
       else root.removeAttribute(spec.attr);
     },
 
+    /* The one write path for every control, so a new `ui` cannot forget half of
+       it: paint, then persist. */
+    commitMode: function(spec, value) {
+      HN.applyMode(spec, value);
+      HN.setLocalStorage(spec.key, value);
+    },
+
     /*
-     * boot.js already applied both stored values before first paint, so the only
-     * job on load is labelling. One storage read covers every toggle: separate
-     * reads resolve in separate tasks, which cost an extra round trip and leave
-     * the toggles' left-to-right order up to whichever callback lands first.
+     * boot.js already applied every stored value before first paint, so the only
+     * job on load is building the controls. One storage read covers all of them:
+     * separate reads resolve in separate tasks, which cost an extra round trip
+     * and leave the controls' left-to-right order up to whichever callback lands
+     * first.
      */
     initModeToggles: function() {
       var nav = $('#top-navigation .nav-links').first();
@@ -967,21 +986,77 @@ var HN = {
           // Index rather than name as state — the name is one lookup away and
           // values[0] is the fallback for anything unset or unrecognised.
           var i = Math.max(spec.values.indexOf(items[spec.key]), 0),
-              link = $('<a/>').attr('href', 'javascript:void(0)').attr('title', spec.title),
-              wrap = $('<span/>').addClass('hnes-nav-toggle').text('|').append(link);
+              build = spec.ui === 'menu' ? HN.buildModeMenu : HN.buildModeCycle;
 
-          link.text(spec.label + ': ' + spec.values[i]);
-          link.click(function() {
-            i = (i + 1) % spec.values.length;
-            HN.applyMode(spec, spec.values[i]);
-            link.text(spec.label + ': ' + spec.values[i]);
-            HN.setLocalStorage(spec.key, spec.values[i]);
-          });
-
-          // Appended here so a toggle never appears unlabelled and inert.
-          nav.append(wrap);
+          // Appended already built, so a control never appears unlabelled and inert.
+          nav.append(build(spec, i));
         });
       });
+    },
+
+    buildModeCycle: function(spec, i) {
+      var link = $('<a/>').attr('href', 'javascript:void(0)').attr('title', spec.title),
+          wrap = $('<span/>').addClass('hnes-nav-toggle').text('|').append(link);
+
+      link.text(spec.label + ': ' + spec.values[i]);
+      link.click(function() {
+        i = (i + 1) % spec.values.length;
+        link.text(spec.label + ': ' + spec.values[i]);
+        HN.commitMode(spec, spec.values[i]);
+      });
+
+      return wrap;
+    },
+
+    /*
+     * Reuses .nav-drop-down, the surface the user and "more" menus already use,
+     * so the palette list inherits their placement, elevation and hover states
+     * rather than growing a second menu style.
+     */
+    buildModeMenu: function(spec, i) {
+      var link = $('<a/>').attr('href', 'javascript:void(0)').attr('title', spec.title),
+          menu = $('<div/>').addClass('nav-drop-down'),
+          wrap = $('<span/>').addClass('hnes-nav-toggle hnes-nav-menu more-arrow')
+                             .text('|').append(link).append(menu),
+          close = function() { menu.hide(); link.removeClass('active'); };
+
+      link.text(spec.label + ': ' + spec.values[i]);
+
+      spec.values.forEach(function(value, index) {
+        var option = $('<a/>').attr('href', 'javascript:void(0)').text(value);
+        if (index === i) option.addClass('nav-active-link');
+
+        option.click(function(e) {
+          e.stopPropagation();
+          menu.find('a').removeClass('nav-active-link');
+          option.addClass('nav-active-link');
+          i = index;
+          link.text(spec.label + ': ' + value);
+          HN.commitMode(spec, value);
+          close();
+        });
+
+        menu.append(option);
+      });
+
+      link.click(function(e) {
+        e.stopPropagation();
+        // Any other open menu closes first; two floating surfaces at once read
+        // as a rendering bug rather than as two menus. Their triggers have to
+        // lose .active with them — the older menus toggle that class blindly, so
+        // leaving it set desyncs their next click from what is on screen.
+        $('.nav-drop-down').not(menu).hide();
+        $('.more-arrow > a.active').not(link).removeClass('active');
+        menu.toggle();
+        link.toggleClass('active', menu.is(':visible'));
+      });
+
+      // Click-away, which the older menus never got. The stopPropagation calls
+      // above are what keep clicks inside the menu from reaching this. Namespaced
+      // so it can be unbound without disturbing other document click handlers.
+      $(document).on('click.hnesMode', close);
+
+      return wrap;
     },
 
     /*
