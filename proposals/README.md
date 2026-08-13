@@ -23,7 +23,7 @@ it correct. Verified against live `news.ycombinator.com` markup on 2026-07-31.
 | Phase 2 — markup drift | Partly done — the comment fade-class and vote-arrow breakages are fixed; the positional table walks are unaudited |
 | Phase 3 — hygiene | Not started |
 | Design tracks | Proposals only |
-| Palette as a user option | Proposal only — [`palettes.md`](./palettes.md) |
+| Palette as a user option | **Implemented** — [`palettes.md`](./palettes.md) |
 
 Implemented work is verified but **not committed** — 23/23 migration unit tests, 7/7
 in-browser migration, 11 page types loading clean, 0 horizontal overflow at
@@ -214,15 +214,20 @@ fill fighting the text on it. Ember's ramp is worth building whichever look ship
 the one to prototype behind the theme toggle rather than commit to — a cool Hacker News is a
 product decision, not a styling one.
 
-### Track B′ — ship all four as a user option
+### Track B′ — all four shipped as a user option *(implemented)*
 
-An alternative to picking one: [`palettes.md`](./palettes.md)
-([hosted](https://claude.ai/code/artifact/af4f0fd4-4733-4b56-b0d0-b5905f2f653e)) proposes a third runtime axis,
-`data-hnes-palette`, alongside the existing theme and density toggles. It costs one entry in
-`HN.MODES` plus a matching one in `boot.js`, and roughly eight tokens per palette — but only
-after the colour block is split into seeds and `color-mix()`-derived values, which is where
-the actual work is. `classic` stays the default and the unset state, so nothing changes for
-anyone who ignores the toggle.
+Rather than picking one, all four ship behind a third runtime axis, `data-hnes-palette`,
+alongside the theme and density toggles. `classic` is the default and the unset state, so
+nothing changes for anyone who ignores the control.
+
+The colour block is split into eleven seeds per palette and a `color-mix()` derived layer
+over them. The derivation runs **within each family, from that family's own endpoints** —
+the obvious scheme of "every neutral a percentage of fg into bg" was measured and abandoned,
+because the light and dark values here were tuned independently and do not share proportions.
+
+Write-up, measurements and the one known pre-existing contrast defect:
+[`palettes.md`](./palettes.md)
+([hosted](https://claude.ai/code/artifact/af4f0fd4-4733-4b56-b0d0-b5905f2f653e)).
 
 ## Verification
 

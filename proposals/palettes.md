@@ -1,159 +1,132 @@
-# Ship all four palettes as a user option
+# The palette option — newsprint, ember, slate, letterpress
 
-## What this asks that Track B didn't
+**Status: implemented.** All four ship as a runtime choice alongside the theme and
+density axes. `classic` is the default and the unset state, so nothing changes for
+anyone who ignores the control.
 
-[`visual-overhauls.html`](./visual-overhauls.html) asked *which* of Newsprint, Ember, Slate
-and Letterpress should become the look. This asks for all four, selectable at runtime —
-which turns a design decision into a mechanism decision. The design work is already done and
-measured; what follows is about making four palettes cost roughly what one costs.
+This document started as a proposal to do it. The plan survived contact with the
+numbers in outline and not in detail; what follows is what was actually built, with
+the place the original plan was wrong called out, because it is the interesting part.
 
-The extension already has two runtime axes on `<html>` — `data-hnes-theme` (auto/light/dark)
-and `data-hnes-density` (comfortable/compact/flow). A palette is a third axis of exactly the
-same shape, and every piece of machinery it needs already exists.
+## What it looks like
 
-## The one real obstacle
+A third `<html>` attribute, `data-hnes-palette`, next to `data-hnes-theme` and
+`data-hnes-density`. One entry in `HN.MODES` (`js/hn.js`), the mirrored entry in
+`js/boot.js` so the choice applies before first paint, and one seed block per palette
+in `style.css`.
 
-The mockups define each palette as **7 slots** — bg, surface, fg, muted, rule, accent,
-onaccent. `style.css` defines **75 tokens, 29 of them `light-dark()` colour pairs**. Written
-out literally, four palettes is 116 hand-picked hex values, every one of which needs its own
-contrast measurement. That is not a stylesheet anyone will keep correct.
+5 palettes × 3 densities × 3 themes is 45 combinations and zero combinatorial CSS,
+because palettes own colour tokens, density owns geometry tokens, and the two sets do
+not intersect.
 
-So the palettes are cheap only if the token block is first split into **seeds** and
-**derived values**. That split is the bulk of the work, and it is worth doing on its own
-merits — it is also, not coincidentally, what Slate's write-up was arguing for.
+## The seed / derive split
 
----
+The four palettes define **7 slots** each. `style.css` had **29 `light-dark()` colour
+pairs**. Written literally that is 116 hand-picked values, so the colour block was
+first split into:
 
-## Step 1 — Seed / derive split *(prerequisite, no visible change)*
+- **Seeds** (11 pairs) — what a palette replaces: `bg`, `surface`, `fg`, `fg-muted`,
+  `border`, `brand`, `orange`, `orange-ink`, `fade-strong`, `fade-weak`, `selection`.
+- **Derived** — `color-mix()` over the seeds, palette-independent, never restated:
+  `surface-alt`, `surface-hi`, `fg-subtle`, `link`, `visited`, the eight interior rungs
+  of the fade ladder, and the two header inks.
 
-Today's `:root` block is partly derived already (`--hnes-c00: var(--hnes-fg)`,
-`--hnes-heat-3: var(--hnes-orange)`, `--hnes-spine: var(--hnes-border)`). This finishes
-the job.
+### Where the original plan was wrong
 
-**Seeds** — the only thing a palette declares, ~8 `light-dark()` pairs:
+The proposal said: derive every neutral as a percentage of `fg` into `bg`, with the
+fade ladder as the showcase — ten pairs collapsing into ten percentages.
 
-| Seed | Why it can't be derived |
-|---|---|
-| `--hnes-bg`, `--hnes-surface` | the two grounds everything else mixes toward |
-| `--hnes-fg` | the ink |
-| `--hnes-brand`, `--hnes-orange`, `--hnes-orange-ink` | brand surface, accent, ink on brand |
-| `--hnes-danger`, `--hnes-new-user` | independent hues — see below |
+Measured, that scheme misses by an Oklab dE of **0.02 to 0.09**. It fails because the
+light and dark values in this stylesheet were tuned independently and do not share
+proportions. The fade ladder is the sharpest case: light fades to 9.8% of the
+foreground, dark stops at 33.6%. Deriving both from one percentage would have made
+dark-mode downvoted comments dramatically dimmer — a visible redesign smuggled in
+under a refactor.
 
-**Derived** — one palette-independent block, `color-mix(in oklab, …)`:
+What works instead is **deriving within a family, from that family's own endpoints**.
+Anchoring absorbs the light/dark divergence, and one percentage then serves both
+themes:
 
-`--hnes-surface-alt`, `--hnes-surface-hi`, `--hnes-border`, `--hnes-fg-muted`,
-`--hnes-fg-subtle`, `--hnes-visited`, `--hnes-selection`, `--hnes-new-parent`,
-`--hnes-heat-1/2`, `--hnes-header-ink*`, and the entire `c5a…cdd` fade ladder.
-
-The fade ladder is where this pays off most. The existing comment already says what those
-ten pairs *are* — "the scale runs from full contrast toward the page background" — so state
-it instead of restating it twenty times:
-
-```css
---hnes-c73: color-mix(in oklab, var(--hnes-fg) 60%, var(--hnes-bg));
-```
-
-Ten pairs become ten percentages, correct in every palette and every theme for free.
-The percentages get fitted to today's rendered values during implementation — sRGB hex to
-an oklab mix ratio is not a clean linear map, so `[100, 72, 60, 54, 51, 44, 36, 30, 24, 18]`
-is a starting ladder to be checked against the current output, not a claim.
-
-**Why `--hnes-danger` and `--hnes-new-user` become seeds rather than derivations:** this is
-Slate's "split brand from state" argument, and it applies whichever palette ships. Today
-`--hnes-new-comment` traces back to `--hnes-brand`, so any palette that moves the brand
-silently changes what "new" looks like. Once the seeds are separate, a palette can move the
-brand without moving the state colours — or move both deliberately.
-
-`color-mix()` and `oklch()` are Chrome 111+; the manifest floor is already 123.
-
-## Step 2 — The palette axis
-
-One entry in `HN.MODES` (`js/hn.js:929`) and the mirrored entry in `js/boot.js` — the
-mirroring is deliberate and already documented in both files; skip the boot.js half and the
-palette flashes to `classic` on every cold load.
-
-```js
-{ key: 'hnesPalette', attr: 'data-hnes-palette', label: 'palette',
-  title: 'Switch colour palette',
-  values: ['classic', 'newsprint', 'ember', 'slate', 'letterpress'] }
-```
-
-`values[0]` is the unset state and leaves the attribute off, per the existing convention —
-so **`classic` is today's look and nobody who ignores the toggle sees any change.**
-`HN.applyMode` and the storage write need no modification at all.
-
-Each palette is then one seed block, weighted with `:where()` for the same reason the
-density blocks are:
-
-```css
-:root:where([data-hnes-palette="ember"]) {
-  --hnes-bg:      light-dark(#fbf6f1, #14100c);
-  --hnes-surface: light-dark(#fffcf9, #1e1712);
-  --hnes-fg:      light-dark(#241a12, #f0e6dc);
-  --hnes-orange:  light-dark(#a8480c, #ff8f45);
-  /* …five more */
-}
-```
-
-Seed values for all four come straight out of `visual-overhauls.html:255-292`, where they
-are already paired light/dark and already measured.
-
-**Orthogonality holds:** palettes own colour tokens, density owns geometry tokens, and the
-two sets do not intersect. 5 palettes × 3 densities × 3 themes is 45 combinations and zero
-combinatorial CSS.
-
-## Step 3 — What deliberately does *not* come along
-
-- **Newsprint's "no card fills"** is `--hnes-com-fill: transparent` — which is already
-  `view: flow`. Keeping it there preserves the orthogonality; Newsprint-the-palette is its
-  colour half, and the documented recipe for the full look is **palette: newsprint + view:
-  flow**. Folding a geometry change into a palette would be the one thing that breaks the
-  axis model.
-- **Newsprint's `data-hnes-contrast` axis** — defer. If it is wanted later it becomes a
-  multiplier on the derived mix percentages, which is only cheap *because* of step 1.
-- **Ember's user-selectable `--hnes-hue`** — ship Ember at fixed hue 45. Ember's own
-  measurements say the accent lightness has to be solved per hue (a 30-entry table, because
-  the target chroma is unreachable at 19 of 36 sampled hues). A hue slider is its own
-  project; the ramp underneath it is what step 1 delivers.
-- **Slate's semantic layer** — already absorbed into step 1, for every palette.
-
-## Step 4 — Presentation
-
-Three cycling text toggles in a 13.5px nav, one of them cycling five values, is the wrong
-control: four clicks to reach `letterpress`, and the label is long.
-
-| Option | Cost | Trade |
+| Token | Derivation | Worst dE |
 |---|---|---|
-| Cycle, like the other two | none | 4 clicks worst case, longest label in the nav |
-| **Dropdown** reusing `.nav-drop-down` | small | one click to any palette; component exists at `js/hn.js:1659-1700`, styled at `style.css:476-507` |
-| Options page (`options_ui`) | medium | conventional home for 3+ prefs, but a new surface, and `boot.js` still needs its own storage read |
+| `surface-alt` | `bg` 61% into `border` | 0.008 |
+| `surface-hi` | `bg` 31% into `border` | 0.008 |
+| `fg-subtle` | `fg-muted` 61% into `border` | 0.004 |
+| `visited` | `fg` 60% into `bg` | 0.007 |
+| `c73`…`cce` | between `fade-strong` and `fade-weak` | 0.017 |
 
-**Recommendation: the dropdown.** Give the `MODES` descriptor a `ui` field (`cycle` or
-`menu`); theme and density keep cycling, palette renders as a menu. The storage key, the
-attribute write and `boot.js` are identical either way — only the rendering branch differs.
+So the ladder's two ends stay seeds rather than becoming a proportion. That is not a
+concession — light text on a dark ground loses legibility faster than the contrast
+ratio predicts, so the shallower dark ladder is a deliberate call, and it now survives
+into every palette instead of being flattened.
+
+`border` and `fg-muted` refused to derive cleanly (best dE 0.012 and 0.015) and stayed
+seeds. Both are slots the palettes supply anyway, as "rule" and "muted".
+
+### What the palettes supply
+
+Seven slots come from `visual-overhauls.html` verbatim. The remaining four are
+generated per theme by applying classic's own transform to that palette's colours, so
+a new palette inherits classic's *intent* rather than its hexes.
+
+All four collapse `--hnes-brand` into `--hnes-orange`: each picked an accent that works
+as a header surface *and* as accent text, which is the job classic needs two oranges
+for. Their `--hnes-orange-ink` flips dark in dark mode for the same reason — the header
+there is the bright accent, not a burnt one. An early pass derived `brand` by darkening
+the accent the way classic does, which put light ink on a bright header and failed AA
+at 2.0–2.5:1 in all four; the mockups' own pairing was right and the derivation was not.
+
+## Two things the split turned up
+
+- `--hnes-new-comment` resolved to `--hnes-brand`, so restyling the brand silently
+  redefined what "new" looks like. State colours are now split from the brand.
+- `.title a.on_story` carried a hardcoded `#3986f8` that every palette would have
+  fought. Now `--hnes-current`, still blue on purpose: sharing the accent would make
+  the current story indistinguishable from an unread one.
+
+## The control
+
+A menu, not a third cycling toggle — five values is four clicks to reach the last one.
+It reuses `.nav-drop-down`, the surface the user and "more" menus already use, so it
+inherits their placement, elevation and hover states. `MODES` descriptors gained a `ui`
+field (`cycle` or `menu`); both renderings write the same attribute and storage key.
+
+It is right-aligned because it is appended last and is therefore always the rightmost
+thing in the nav: opening leftward is the only direction that cannot push the menu off
+the viewport and reintroduce horizontal scroll.
 
 ## Verification
 
-Per palette (×2 themes), only the **seeds** need measuring — every derived token is a mix of
-two already-measured seeds:
+Run against a real Chrome with the extension loaded, on live Hacker News.
 
-1. `--hnes-fg` on `--hnes-bg` and on `--hnes-surface`; `--hnes-orange-ink` on `--hnes-brand`;
-   `--hnes-orange` on `--hnes-bg`. Same twelve pairs this session already measured for classic.
-2. Fade ladder renders monotonic `c00 → cdd`, and the steps at `c88` and below still clear the
-   floor for de-emphasised text — construction guarantees monotone lightness, not legibility.
-3. **`setTopColor` (`js/hn.js:1809`)**: on HN's memorial days the header `bgcolor` is an inline
-   style that beats `--hnes-brand`. Confirm `--hnes-orange-ink` still reads on HN's tint in each
-   palette — this is the one place the token layer is not in charge.
-4. Cold-load flash check per palette: hard reload with cache disabled, confirm no `classic`
-   frame — i.e. `boot.js` really did get the third entry.
+- **Token resolution** — custom properties are substitution-only, so reading them back
+  needs a probe element using each token in a real property, then a canvas to convert
+  the resulting `oklab()`/`color(srgb …)` to bytes. Every derived token lands within
+  dE 0.019 of the literal it replaced; the ladder is monotonic toward the background in
+  all five palettes and both themes.
+- **Contrast** — every load-bearing pair clears AA across all five palettes and both
+  themes, most AAA, none below classic.
+- **End to end** — the control builds with all five options; picking one writes the
+  attribute, relabels, closes the menu and persists; the choice survives a reload with
+  the attribute already set before the reveal; palette and density do not disturb each
+  other; no page errors on the index or a 300-comment thread.
+- **The header** — `#header` resolves to the palette's brand on both page shapes
+  (classic `#8f3b08`, slate `#ff7a33` in dark), and HN's own `bgcolor="#ff6600"` does
+  not win. The remaining edge is `setTopColor` (`js/hn.js`), which writes an inline
+  style on HN's memorial days and is the one place the token layer is not in charge.
 
-## Sequencing
+## Known defect, pre-existing, not fixed here
 
-1. **Commit what exists first.** All of this lands on ~1,449 uncommitted lines (MV3 port +
-   stylesheet rebuild). A seed/derive refactor is a bad thing to have tangled with that diff.
-2. Seed/derive split — no user-visible change, carries the real risk, own commit.
-3. Palette axis + four seed blocks.
-4. Menu UI.
+`--hnes-fg-subtle` measures **2.81:1 on the page background in classic light**, against
+a 4.5:1 AA floor for text at its size (12px). It is the same in every palette
+(2.85–3.23 light, 3.59–4.25 dark) because they all inherit the same relationship.
 
-Steps 2-4 are each independently shippable; stopping after 2 still leaves the stylesheet
-better than it is now.
+It applies to the non-link words in the subtext line — "points by", "ago" — plus
+`.paren`, `.hnes-age`, `.hnes-actions` separators and `.input-help`. The links in that
+line are `--hnes-fg-muted` and pass at 5.02.
+
+This predates the palette work; the derived value is dE 0.003 from the literal it
+replaced. It is not fixed here because the fix is a design decision, not a token edit:
+raising `fg-subtle` to 4.5 collapses it into `fg-muted` and loses the distinction, so
+the real options are to accept a smaller gap or to move the text uses of `fg-subtle`
+onto `fg-muted` and keep `fg-subtle` for the non-text ones.
