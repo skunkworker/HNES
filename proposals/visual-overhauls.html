@@ -1,0 +1,894 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Four colour and theming overhauls for HNES: Newsprint, Ember, Slate and Letterpress.">
+<title>HNES — four visual overhauls</title>
+<style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { margin: 0; }
+    img, svg, video { max-width: 100%; height: auto; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    table { border-collapse: collapse; }
+</style>
+<style>
+  :root {
+    color-scheme: light dark;
+
+    /* Page shell: deliberately neutral so the palettes on display read true. */
+    --shell:   #f6f6f5;
+    --raised:  #ffffff;
+    --ink:     #17171a;
+    --ink-2:   #5c5c5f;
+    --ink-3:   #8d8d8f;
+    --rule:    #e0e0dc;
+    --rule-2:  #eeeeeb;
+
+    --ui:   system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --measure: 66ch;
+    --band: clamp(3.5rem, 8vw, 6rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --shell:  #0e0e0d;
+      --raised: #171716;
+      --ink:    #ececea;
+      --ink-2:  #9e9e99;
+      --ink-3:  #6b6b67;
+      --rule:   #2a2a28;
+      --rule-2: #201f1e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --shell:  #0e0e0d;
+    --raised: #171716;
+    --ink:    #ececea;
+    --ink-2:  #9e9e99;
+    --ink-3:  #6b6b67;
+    --rule:   #2a2a28;
+    --rule-2: #201f1e;
+  }
+  :root[data-theme="light"] {
+    --shell:  #f6f6f5;
+    --raised: #ffffff;
+    --ink:    #17171a;
+    --ink-2:  #5c5c5f;
+    --ink-3:  #8d8d8f;
+    --rule:   #e0e0dc;
+    --rule-2: #eeeeeb;
+  }
+
+  body {
+    margin: 0;
+    background: var(--shell);
+    color: var(--ink);
+    font-family: var(--ui);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 clamp(1.1rem, 4vw, 2.5rem); }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 3px; }
+
+  /* ---------------- masthead ---------------- */
+
+  .masthead { padding: clamp(3rem, 9vw, 5.5rem) 0 clamp(2rem, 5vw, 3rem); }
+  .kicker {
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 1.4rem;
+  }
+  h1 {
+    font-size: clamp(2rem, 5.4vw, 3.1rem);
+    line-height: 1.06;
+    letter-spacing: -.028em;
+    font-weight: 660;
+    margin: 0 0 1.1rem;
+    max-width: 17ch;
+    text-wrap: balance;
+  }
+  .standfirst { font-size: clamp(1.02rem, 1.6vw, 1.15rem); color: var(--ink-2); max-width: var(--measure); margin: 0 0 1.6rem; }
+
+  .axis {
+    border: 1px solid var(--rule);
+    background: var(--raised);
+    padding: 1.1rem 1.2rem;
+    max-width: var(--measure);
+  }
+  .axis h2 {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 600;
+    margin: 0 0 .8rem;
+  }
+  .axis ol { margin: 0; padding-left: 1.15rem; }
+  .axis li { margin-bottom: .45rem; color: var(--ink-2); }
+  .axis li:last-child { margin-bottom: 0; }
+  .axis b { color: var(--ink); font-weight: 620; }
+
+  /* ---------------- bands ---------------- */
+
+  section { padding: var(--band) 0 0; }
+  .band { border-top: 1px solid var(--rule); }
+
+  h2.name {
+    font-size: clamp(1.5rem, 3.2vw, 2.05rem);
+    line-height: 1.12;
+    letter-spacing: -.022em;
+    font-weight: 640;
+    margin: .1rem 0 .5rem;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin: 0;
+  }
+  .thesis { color: var(--ink-2); max-width: var(--measure); margin: 0; }
+
+  /* The one element each band borrows from the palette it proposes. */
+  .accentrule { height: 2px; border: 0; margin: 1.1rem 0 0; max-width: 5.5rem; }
+
+  h3 {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 600;
+    margin: 2.2rem 0 .8rem;
+  }
+  p { max-width: var(--measure); }
+  code {
+    font-family: var(--mono);
+    font-size: .85em;
+    background: var(--rule-2);
+    padding: .1em .38em;
+    border-radius: 3px;
+  }
+
+  /* ---------------- swatch ladder ---------------- */
+
+  .ladder { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .ladder__row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px; background: var(--rule); }
+  @media (max-width: 700px) { .ladder__row { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .sw { padding: .75rem .7rem 3.4rem; position: relative; }
+  .sw span {
+    display: block;
+    font-family: var(--mono);
+    font-size: .64rem;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    opacity: .72;
+  }
+  .sw b {
+    position: absolute;
+    left: .7rem;
+    bottom: .7rem;
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------------- previews ---------------- */
+
+  .pair { display: grid; gap: 1rem; margin-top: 1rem; }
+  @media (min-width: 820px) { .pair { grid-template-columns: 1fr 1fr; } }
+
+  .preview {
+    background: var(--c-bg);
+    color: var(--c-fg);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+  .preview__tag {
+    font-family: var(--mono);
+    font-size: .62rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    padding: .45rem .7rem;
+    color: var(--c-muted);
+    border-bottom: 1px solid var(--c-rule);
+    background: var(--c-surface);
+  }
+  .pv-head {
+    background: var(--c-accent);
+    padding: .5rem .7rem;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    flex-wrap: wrap;
+  }
+  .pv-logo {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: .7rem;
+    letter-spacing: .04em;
+    color: var(--c-onaccent);
+    border: 1px solid var(--c-onaccent);
+    padding: .05em .35em;
+    margin-right: .3rem;
+  }
+  .pv-nav {
+    font-size: .72rem;
+    color: var(--c-onaccent);
+    opacity: .88;
+    padding: .2em .55em;
+    border-radius: 999px;
+  }
+  .pv-nav.on { background: var(--c-onaccent); color: var(--c-accent); opacity: 1; font-weight: 600; }
+  .pv-body { padding: .7rem; display: grid; gap: .5rem; }
+  .pv-c { background: var(--c-surface); border-radius: 4px; padding: .5rem .6rem; }
+  .pv-c.flat { background: none; border-radius: 0; border-bottom: 1px solid var(--c-rule); padding-left: 0; padding-right: 0; }
+  .pv-hd { display: flex; align-items: center; gap: .45rem; font-size: .72rem; color: var(--c-muted); }
+  .pv-user { font-weight: 640; color: var(--c-fg); }
+  .pv-arrow {
+    width: 0; height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 7px solid var(--c-muted);
+    flex: none;
+  }
+  .pv-txt { margin: .3rem 0 0; font-size: .8rem; }
+  .pv-new { box-shadow: inset 2px 0 0 var(--c-accent); }
+  .pv-pill {
+    font-size: .66rem;
+    color: var(--c-muted);
+    background: var(--c-rule);
+    border-radius: 999px;
+    padding: .05em .5em;
+  }
+
+  /* ------- palette token scopes ------- */
+
+  .p-news-l {
+    --c-bg:#fdfdfc; --c-surface:#ffffff; --c-fg:#111110; --c-muted:#5b5b57;
+    --c-rule:#e4e4de; --c-accent:#c2450a; --c-onaccent:#ffffff;
+  }
+  .p-news-d {
+    --c-bg:#0d0d0c; --c-surface:#151513; --c-fg:#f3f2ec; --c-muted:#a3a29b;
+    --c-rule:#2a2a27; --c-accent:#ff7a33; --c-onaccent:#1a0d04;
+  }
+  .p-ember-l {
+    --c-bg:#fbf6f1; --c-surface:#fffcf9; --c-fg:#241a12; --c-muted:#6b5443;
+    --c-rule:#e8dbcd; --c-accent:#a8480c; --c-onaccent:#fff4ea;
+  }
+  .p-ember-d {
+    --c-bg:#14100c; --c-surface:#1e1712; --c-fg:#f0e6dc; --c-muted:#b09681;
+    --c-rule:#33281f; --c-accent:#ff8f45; --c-onaccent:#1a0d04;
+  }
+  .p-slate-l {
+    --c-bg:#f1f3f4; --c-surface:#ffffff; --c-fg:#14181a; --c-muted:#5a656b;
+    --c-rule:#d8dde0; --c-accent:#ae470b; --c-onaccent:#ffffff;
+  }
+  .p-slate-d {
+    --c-bg:#0f1214; --c-surface:#181d20; --c-fg:#e3e8ea; --c-muted:#96a0a6;
+    --c-rule:#283035; --c-accent:#ff7a33; --c-onaccent:#14181a;
+  }
+  /* Letterpress: every value below is a computed oklch step at hue 45, not a
+     hand-picked hex. Neutrals carry a trace of chroma so they read as chosen
+     rather than as default grey. */
+  .p-press-l {
+    --c-bg:#fefaf9; --c-surface:#ffffff; --c-fg:#19120f; --c-muted:#6d605b;
+    --c-rule:#e6deda; --c-accent:#c04800; --c-onaccent:#fff8f5;
+  }
+  .p-press-d {
+    --c-bg:#0f0b09; --c-surface:#1b1613; --c-fg:#f0ece9; --c-muted:#aea29c;
+    --c-rule:#38312e; --c-accent:#ff7a34; --c-onaccent:#21110a;
+  }
+
+  .sw--bg      { background: var(--c-bg);      color: var(--c-fg); }
+  .sw--surface { background: var(--c-surface); color: var(--c-fg); }
+  .sw--fg      { background: var(--c-fg);      color: var(--c-bg); }
+  .sw--muted   { background: var(--c-muted);   color: var(--c-bg); }
+  .sw--rule    { background: var(--c-rule);    color: var(--c-fg); }
+  .sw--accent  { background: var(--c-accent);  color: var(--c-onaccent); }
+
+  /* ---------------- data tables ---------------- */
+
+  .tbl { overflow-x: auto; border: 1px solid var(--rule); margin-top: 1rem; background: var(--raised); }
+  .tbl table { border-collapse: collapse; width: 100%; min-width: 34rem; }
+  .tbl caption {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: .66rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    padding: .7rem .9rem .1rem;
+  }
+  .tbl th, .tbl td {
+    text-align: left;
+    padding: .5rem .9rem;
+    font-family: var(--mono);
+    font-size: .76rem;
+    font-variant-numeric: tabular-nums;
+    border-top: 1px solid var(--rule-2);
+  }
+  .tbl thead th { color: var(--ink-3); font-weight: 500; }
+  .tbl td { color: var(--ink-2); }
+  .tbl td.num { color: var(--ink); }
+  .grade { font-size: .66rem; letter-spacing: .06em; padding: .1em .42em; border: 1px solid currentColor; border-radius: 2px; }
+  .grade.aaa { color: #3f6b3a; }
+  .grade.aa  { color: #7d5a13; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .grade.aaa { color: #7fb377; }
+    :root:not([data-theme="light"]) .grade.aa  { color: #d7a53f; }
+  }
+  :root[data-theme="dark"] .grade.aaa { color: #7fb377; }
+  :root[data-theme="dark"] .grade.aa  { color: #d7a53f; }
+
+  ul.tight { margin: 0; padding-left: 1.1rem; max-width: var(--measure); }
+  ul.tight li { margin-bottom: .5rem; color: var(--ink-2); }
+  ul.tight b { color: var(--ink); font-weight: 620; }
+
+  .compare { overflow-x: auto; border: 1px solid var(--rule); margin-top: 1.4rem; }
+  .compare table { border-collapse: collapse; width: 100%; min-width: 42rem; }
+  .compare th, .compare td { text-align: left; padding: .72rem .9rem; border-top: 1px solid var(--rule-2); font-size: .87rem; vertical-align: top; }
+  .compare thead th {
+    border-top: 0; font-family: var(--mono); font-size: .68rem;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); font-weight: 500;
+  }
+  .compare tbody th { font-family: var(--mono); font-size: .78rem; font-weight: 600; white-space: nowrap; }
+  .compare td { color: var(--ink-2); }
+
+  .callout { border-left: 2px solid var(--ink); padding: 1rem 1.2rem; margin: 1.6rem 0 0; max-width: var(--measure); background: var(--raised); }
+  .callout p { margin: 0; }
+  .callout p + p { margin-top: .7rem; }
+
+  footer {
+    margin-top: var(--band);
+    border-top: 1px solid var(--rule);
+    padding: 1.6rem 0 3.5rem;
+    font-family: var(--mono);
+    font-size: .72rem;
+    color: var(--ink-3);
+    display: flex; flex-wrap: wrap; gap: .6rem 1.6rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="kicker">HNES &middot; visual identity &middot; four overhauls</p>
+    <h1>How much orange is Hacker News?</h1>
+    <p class="standfirst">
+      Four complete palettes with their theming mechanics. This track is independent of the
+      comment-UX directions — the token layer already separates colour from layout, so any
+      palette here composes with any of those. Every contrast figure below is computed, not
+      estimated.
+    </p>
+
+    <div class="axis">
+      <h2>The question each one answers</h2>
+      <ol>
+        <li><b>Newsprint</b> demotes orange to a signal and lets contrast and structure carry the page.</li>
+        <li><b>Ember</b> promotes orange to the entire tonal system — every surface derived from one hue.</li>
+        <li><b>Slate</b> moves the ground cool and makes colour strictly semantic.</li>
+        <li><b>Letterpress</b> takes Newsprint's answer and builds it on Ember's machinery — the
+            restrained look, generated rather than typed.</li>
+      </ol>
+    </div>
+  </header>
+
+  <!-- ======================= NEWSPRINT ======================= -->
+
+  <section class="band">
+    <p class="eyebrow" style="color:#c2450a">Overhaul one</p>
+    <h2 class="name">Newsprint</h2>
+    <p class="thesis">
+      Hacker News as a broadsheet. No card fills anywhere — separation comes from hairline
+      rules and whitespace, the way a printed page does it. Near-white paper, near-black ink,
+      and orange spent only where it means something: the active tab, an unread marker, a
+      link you have not followed.
+    </p>
+    <hr class="accentrule" style="background:#c2450a">
+
+    <h3>Palette</h3>
+    <div class="ladder">
+      <div class="ladder__row p-news-l">
+        <div class="sw sw--bg"><span>page</span><b>#fdfdfc</b></div>
+        <div class="sw sw--surface"><span>surface</span><b>#ffffff</b></div>
+        <div class="sw sw--fg"><span>ink</span><b>#111110</b></div>
+        <div class="sw sw--muted"><span>muted</span><b>#5b5b57</b></div>
+        <div class="sw sw--rule"><span>rule</span><b>#e4e4de</b></div>
+        <div class="sw sw--accent"><span>signal</span><b>#c2450a</b></div>
+      </div>
+      <div class="ladder__row p-news-d">
+        <div class="sw sw--bg"><span>page</span><b>#0d0d0c</b></div>
+        <div class="sw sw--surface"><span>surface</span><b>#151513</b></div>
+        <div class="sw sw--fg"><span>ink</span><b>#f3f2ec</b></div>
+        <div class="sw sw--muted"><span>muted</span><b>#a3a29b</b></div>
+        <div class="sw sw--rule"><span>rule</span><b>#2a2a27</b></div>
+        <div class="sw sw--accent"><span>signal</span><b>#ff7a33</b></div>
+      </div>
+    </div>
+
+    <div class="pair">
+      <div class="preview p-news-l">
+        <div class="preview__tag">Light &mdash; day edition</div>
+        <div class="pv-head">
+          <span class="pv-logo">Y</span>
+          <span class="pv-nav on">top</span><span class="pv-nav">new</span><span class="pv-nav">ask</span>
+        </div>
+        <div class="pv-body">
+          <div class="pv-c flat">
+            <div class="pv-hd"><i class="pv-arrow"></i><span class="pv-user">keiferski</span><span>46 minutes ago</span></div>
+            <p class="pv-txt">The problem was never the tooling. Nobody agrees on what "done" means before they start.</p>
+          </div>
+          <div class="pv-c flat pv-new">
+            <div class="pv-hd"><i class="pv-arrow"></i><span class="pv-user">seizethecheese</span><span>44 minutes ago</span></div>
+            <p class="pv-txt">Strong agree, though the estimate is usually fine. What drifts is the scope behind it.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview p-news-d">
+        <div class="preview__tag">Dark &mdash; night edition</div>
+        <div class="pv-head">
+          <span class="pv-logo">Y</span>
+          <span class="pv-nav on">top</span><span class="pv-nav">new</span><span class="pv-nav">ask</span>
+        </div>
+        <div class="pv-body">
+          <div class="pv-c flat">
+            <div class="pv-hd"><i class="pv-arrow"></i><span class="pv-user">keiferski</span><span>46 minutes ago</span></div>
+            <p class="pv-txt">The problem was never the tooling. Nobody agrees on what "done" means before they start.</p>
+          </div>
+          <div class="pv-c flat pv-new">
+            <div class="pv-hd"><i class="pv-arrow"></i><span class="pv-user">seizethecheese</span><span>44 minutes ago</span></div>
+            <p class="pv-txt">Strong agree, though the estimate is usually fine. What drifts is the scope behind it.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3>Theming mechanics</h3>
+    <ul class="tight">
+      <li><b>Adds a contrast axis, not just a palette.</b> A contrast-first design earns a
+          <code>data-hnes-contrast="normal|high"</code> attribute alongside the existing theme
+          one — high pushes muted text to full ink and thickens rules to 2px.</li>
+      <li><b>Retires the surface tints.</b> <code>--hnes-surface-alt</code> and the
+          odd/even level fills stop being used, so nesting is carried entirely by the spine.</li>
+      <li><b>Cheapest of the three to implement</b> — it is a re-pointing of existing tokens
+          plus deletions. No new colour machinery.</li>
+    </ul>
+
+    <div class="tbl">
+      <table>
+        <caption>Measured contrast</caption>
+        <thead><tr><th>Pair</th><th>Light</th><th></th><th>Dark</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>body on surface</td><td class="num">18.89:1</td><td><span class="grade aaa">AAA</span></td><td class="num">16.30:1</td><td><span class="grade aaa">AAA</span></td></tr>
+          <tr><td>muted on surface</td><td class="num">6.82:1</td><td><span class="grade aa">AA</span></td><td class="num">7.14:1</td><td><span class="grade aaa">AAA</span></td></tr>
+          <tr><td>signal on surface</td><td class="num">5.06:1</td><td><span class="grade aa">AA</span></td><td class="num">7.04:1</td><td><span class="grade aaa">AAA</span></td></tr>
+          <tr><td>header ink on signal</td><td class="num">5.06:1</td><td><span class="grade aa">AA</span></td><td class="num">7.33:1</td><td><span class="grade aaa">AAA</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ======================= EMBER ======================= -->
+
+  <section class="band">
+    <p class="eyebrow" style="color:#a8480c">Overhaul two</p>
+    <h2 class="name">Ember</h2>
+    <p class="thesis">
+      The opposite bet. Rather than rationing the orange, derive everything from it: page,
+      surfaces, borders and muted text are all steps along one hue, so the interface reads as
+      a single warm material lit from one source. The accent is the brightest step of the same
+      ramp rather than a separate colour.
+    </p>
+    <hr class="accentrule" style="background:#a8480c">
+
+    <h3>Palette</h3>
+    <div class="ladder">
+      <div class="ladder__row p-ember-l">
+        <div class="sw sw--bg"><span>page</span><b>#fbf6f1</b></div>
+        <div class="sw sw--surface"><span>surface</span><b>#fffcf9</b></div>
+        <div class="sw sw--fg"><span>ink</span><b>#241a12</b></div>
+        <div class="sw sw--muted"><span>muted</span><b>#6b5443</b></div>
+        <div class="sw sw--rule"><span>rule</span><b>#e8dbcd</b></div>
+        <div class="sw sw--accent"><span>brand</span><b>#a8480c</b></div>
+      </div>
+      <div class="ladder__row p-ember-d">
+        <div class="sw sw--bg"><span>page</span><b>#14100c</b></div>
+        <div class="sw sw--surface"><span>surface</span><b>#1e1712</b></div>
+        <div class="sw sw--fg"><span>ink</span><b>#f0e6dc</b></div>
+        <div class="sw sw--muted"><span>muted</span><b>#b09681</b></div>
+        <div class="sw sw--rule"><span>rule</span><b>#33281f</b></div>
+        <div class="sw sw--accent"><span>brand</span><b>#ff8f45</b></div>
+      </div>
+    </div>
+
+    <div class="pair">
+      <div class="preview p-ember-l">
+        <div class="preview__tag">Light &mdash; one hue, eight steps</div>
+        <div class="pv-head">
+          <span class="pv-logo">Y</span>
+          <span class="pv-nav on">top</span><span class="pv-nav">new</span><span class="pv-nav">ask</span>
+        </div>
+        <div class="pv-body">
+          <div class="pv-c">
+            <div class="pv-hd"><i class="pv-arrow"></i><span class="pv-user">keiferski</span><span>46 minutes ago</span><span class="pv-pill">3 replies</span></div>
+            <p class="pv-txt">The problem was never the tooling. Nobody agrees on what "done" means before they start.</p>
+          </div>
+          <div class="pv-c">
+            <div class="pv-hd"><i class="pv-arrow"></i><span class="pv-user">seizethecheese</span><span>44 minutes ago</span></div>
+            <p class="pv-txt">Strong agree, though the estimate is usually fine. What drifts is the scope behind it.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview p-ember-d">
+        <div class="preview__tag">Dark &mdash; warm charcoal, not black</div>
+        <div class="pv-head">
+          <span class="pv-logo">Y</span>
+          <span class="pv-nav on">top</span><span class="pv-nav">new</span><span class="pv-nav">ask</span>
+        </div>
+        <div class="pv-body">
+          <div class="pv-c">
+            <div class="pv-hd"><i class="pv-arrow"></i><span class="pv-user">keiferski</span><span>46 minutes ago</span><span class="pv-pill">3 replies</span></div>
+            <p class="pv-txt">The problem was never the tooling. Nobody agrees on what "done" means before they start.</p>
+          </div>
+          <div class="pv-c">
+            <div class="pv-hd"><i class="pv-arrow"></i><span class="pv-user">seizethecheese</span><span>44 minutes ago</span></div>
+            <p class="pv-txt">Strong agree, though the estimate is usually fine. What drifts is the scope behind it.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3>Theming mechanics</h3>
+    <ul class="tight">
+      <li><b>The interesting one: a user-selectable hue.</b> Because every surface is a step on
+          one ramp, the literal hex tokens can become <code>oklch()</code> values computed from
+          a single <code>--hnes-hue</code>. Set it to 45 and you have HN orange; set it to 200
+          and the whole extension is cool blue, with contrast preserved because only the hue
+          channel moves.</li>
+      <li><b>Cost is in the colour machinery.</b> <code>oklch()</code> and
+          <code>light-dark()</code> both need Chrome 123+, which the manifest already requires
+          — but the ramp has to be authored so that lightness steps hold their contrast at
+          every hue, which is real design work, not a find-and-replace.</li>
+      <li><b>Watch for muddiness.</b> A single warm hue across every surface can go sepia. The
+          guard is keeping ink and muted text slightly desaturated relative to the ramp, which
+          is why <code>#241a12</code> is not simply a dark step of the brand.</li>
+    </ul>
+
+    <div class="tbl">
+      <table>
+        <caption>Measured contrast</caption>
+        <thead><tr><th>Pair</th><th>Light</th><th></th><th>Dark</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>body on surface</td><td class="num">16.68:1</td><td><span class="grade aaa">AAA</span></td><td class="num">14.38:1</td><td><span class="grade aaa">AAA</span></td></tr>
+          <tr><td>muted on surface</td><td class="num">6.91:1</td><td><span class="grade aa">AA</span></td><td class="num">6.34:1</td><td><span class="grade aa">AA</span></td></tr>
+          <tr><td>brand on surface</td><td class="num">5.71:1</td><td><span class="grade aa">AA</span></td><td class="num">7.81:1</td><td><span class="grade aaa">AAA</span></td></tr>
+          <tr><td>header ink on brand</td><td class="num">5.39:1</td><td><span class="grade aa">AA</span></td><td class="num">8.40:1</td><td><span class="grade aaa">AAA</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ======================= SLATE ======================= -->
+
+  <section class="band">
+    <p class="eyebrow" style="color:#ae470b">Overhaul three</p>
+    <h2 class="name">Slate</h2>
+    <p class="thesis">
+      The largest departure. The ground goes cool and desaturated — the register of a
+      developer tool rather than a news site — and orange survives only as a signal. In
+      exchange, colour finally gets to mean something consistently: new, dead, flagged and
+      score each get their own hue, separate from the brand.
+    </p>
+    <hr class="accentrule" style="background:#ae470b">
+
+    <h3>Palette</h3>
+    <div class="ladder">
+      <div class="ladder__row p-slate-l">
+        <div class="sw sw--bg"><span>page</span><b>#f1f3f4</b></div>
+        <div class="sw sw--surface"><span>surface</span><b>#ffffff</b></div>
+        <div class="sw sw--fg"><span>ink</span><b>#14181a</b></div>
+        <div class="sw sw--muted"><span>muted</span><b>#5a656b</b></div>
+        <div class="sw sw--rule"><span>rule</span><b>#d8dde0</b></div>
+        <div class="sw sw--accent"><span>signal</span><b>#ae470b</b></div>
+      </div>
+      <div class="ladder__row p-slate-d">
+        <div class="sw sw--bg"><span>page</span><b>#0f1214</b></div>
+        <div class="sw sw--surface"><span>surface</span><b>#181d20</b></div>
+        <div class="sw sw--fg"><span>ink</span><b>#e3e8ea</b></div>
+        <div class="sw sw--muted"><span>muted</span><b>#96a0a6</b></div>
+        <div class="sw sw--rule"><span>rule</span><b>#283035</b></div>
+        <div class="sw sw--accent"><span>signal</span><b>#ff7a33</b></div>
+      </div>
+    </div>
+
+    <div class="pair">
+      <div class="preview p-slate-d">
+        <div class="preview__tag">Dark &mdash; designed first</div>
+        <div class="pv-head">
+          <span class="pv-logo">Y</span>
+          <span class="pv-nav on">top</span><span class="pv-nav">new</span><span class="pv-nav">ask</span>
+        </div>
+        <div class="pv-body">
+          <div class="pv-c">
+            <div class="pv-hd"><i class="pv-arrow"></i><span class="pv-user">keiferski</span><span>46 minutes ago</span></div>
+            <p class="pv-txt">The problem was never the tooling. Nobody agrees on what "done" means before they start.</p>
+          </div>
+          <div class="pv-c pv-new">
+            <div class="pv-hd"><i class="pv-arrow"></i><span class="pv-user">seizethecheese</span><span>44 minutes ago</span><span class="pv-pill">new</span></div>
+            <p class="pv-txt">Strong agree, though the estimate is usually fine. What drifts is the scope behind it.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview p-slate-l">
+        <div class="preview__tag">Light &mdash; derived from dark</div>
+        <div class="pv-head">
+          <span class="pv-logo">Y</span>
+          <span class="pv-nav on">top</span><span class="pv-nav">new</span><span class="pv-nav">ask</span>
+        </div>
+        <div class="pv-body">
+          <div class="pv-c">
+            <div class="pv-hd"><i class="pv-arrow"></i><span class="pv-user">keiferski</span><span>46 minutes ago</span></div>
+            <p class="pv-txt">The problem was never the tooling. Nobody agrees on what "done" means before they start.</p>
+          </div>
+          <div class="pv-c pv-new">
+            <div class="pv-hd"><i class="pv-arrow"></i><span class="pv-user">seizethecheese</span><span>44 minutes ago</span><span class="pv-pill">new</span></div>
+            <p class="pv-txt">Strong agree, though the estimate is usually fine. What drifts is the scope behind it.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3>Theming mechanics</h3>
+    <ul class="tight">
+      <li><b>Splits the token block in two.</b> Brand colour and state colour stop being the
+          same thing. Today <code>--hnes-new-comment</code>, the poll graph and the active tab
+          all trace back to <code>--hnes-brand</code>; here they resolve against a separate
+          semantic set, so restyling the brand cannot silently change what "new" looks like.</li>
+      <li><b>Dark is the reference, light is derived.</b> Reverses the current order, which
+          matches how the extension is actually used — and the dark palette is where the
+          existing design has needed the most correction.</li>
+      <li><b>Biggest identity risk of the three.</b> A cool HN reads as a different product.
+          Worth prototyping behind the existing theme toggle as a fourth option before
+          committing.</li>
+    </ul>
+
+    <div class="tbl">
+      <table>
+        <caption>Measured contrast</caption>
+        <thead><tr><th>Pair</th><th>Light</th><th></th><th>Dark</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>body on surface</td><td class="num">17.87:1</td><td><span class="grade aaa">AAA</span></td><td class="num">13.76:1</td><td><span class="grade aaa">AAA</span></td></tr>
+          <tr><td>muted on surface</td><td class="num">5.99:1</td><td><span class="grade aa">AA</span></td><td class="num">6.37:1</td><td><span class="grade aa">AA</span></td></tr>
+          <tr><td>signal on surface</td><td class="num">5.67:1</td><td><span class="grade aa">AA</span></td><td class="num">6.54:1</td><td><span class="grade aa">AA</span></td></tr>
+          <tr><td>header ink on signal</td><td class="num">5.67:1</td><td><span class="grade aa">AA</span></td><td class="num">6.88:1</td><td><span class="grade aa">AA</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ======================= LETTERPRESS ======================= -->
+
+  <section class="band">
+    <p class="eyebrow" style="color:#c04800">Overhaul four &middot; the synthesis</p>
+    <h2 class="name">Letterpress</h2>
+    <p class="thesis">
+      Newsprint's page with Ember's press underneath it. What you see is the broadsheet —
+      no fills, hairline rules, ink on paper. What sits under it is Ember's ramp: every value
+      here is a step on one <code>oklch()</code> scale at hue 45, not a hex somebody typed.
+      The two signals are the proof rather than the exception — they are the exact ramp
+      coordinates of the oranges Newsprint reached by hand, which is the useful result: the
+      generated scale can land on a chosen colour instead of merely near it. The look is the
+      conservative one; the machinery is the ambitious one.
+    </p>
+    <hr class="accentrule" style="background:#c04800">
+
+    <h3>Palette</h3>
+    <div class="ladder">
+      <div class="ladder__row p-press-l">
+        <div class="sw sw--bg"><span>page</span><b>#fefaf9</b></div>
+        <div class="sw sw--surface"><span>surface</span><b>#ffffff</b></div>
+        <div class="sw sw--fg"><span>ink</span><b>#19120f</b></div>
+        <div class="sw sw--muted"><span>muted</span><b>#6d605b</b></div>
+        <div class="sw sw--rule"><span>rule</span><b>#e6deda</b></div>
+        <div class="sw sw--accent"><span>signal</span><b>#c04800</b></div>
+      </div>
+      <div class="ladder__row p-press-d">
+        <div class="sw sw--bg"><span>page</span><b>#0f0b09</b></div>
+        <div class="sw sw--surface"><span>surface</span><b>#1b1613</b></div>
+        <div class="sw sw--fg"><span>ink</span><b>#f0ece9</b></div>
+        <div class="sw sw--muted"><span>muted</span><b>#aea29c</b></div>
+        <div class="sw sw--rule"><span>rule</span><b>#38312e</b></div>
+        <div class="sw sw--accent"><span>signal</span><b>#ff7a34</b></div>
+      </div>
+    </div>
+
+    <div class="pair">
+      <div class="preview p-press-l">
+        <div class="preview__tag">Light &mdash; hue 45, the default</div>
+        <div class="pv-head">
+          <span class="pv-logo">Y</span>
+          <span class="pv-nav on">top</span><span class="pv-nav">new</span><span class="pv-nav">ask</span>
+        </div>
+        <div class="pv-body">
+          <div class="pv-c flat">
+            <div class="pv-hd"><i class="pv-arrow"></i><span class="pv-user">keiferski</span><span>46 minutes ago</span></div>
+            <p class="pv-txt">The problem was never the tooling. Nobody agrees on what "done" means before they start.</p>
+          </div>
+          <div class="pv-c flat pv-new">
+            <div class="pv-hd"><i class="pv-arrow"></i><span class="pv-user">seizethecheese</span><span>44 minutes ago</span></div>
+            <p class="pv-txt">Strong agree, though the estimate is usually fine. What drifts is the scope behind it.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview p-press-d">
+        <div class="preview__tag">Dark &mdash; same hue, its own steps</div>
+        <div class="pv-head">
+          <span class="pv-logo">Y</span>
+          <span class="pv-nav on">top</span><span class="pv-nav">new</span><span class="pv-nav">ask</span>
+        </div>
+        <div class="pv-body">
+          <div class="pv-c flat">
+            <div class="pv-hd"><i class="pv-arrow"></i><span class="pv-user">keiferski</span><span>46 minutes ago</span></div>
+            <p class="pv-txt">The problem was never the tooling. Nobody agrees on what "done" means before they start.</p>
+          </div>
+          <div class="pv-c flat pv-new">
+            <div class="pv-hd"><i class="pv-arrow"></i><span class="pv-user">seizethecheese</span><span>44 minutes ago</span></div>
+            <p class="pv-txt">Strong agree, though the estimate is usually fine. What drifts is the scope behind it.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3>Theming mechanics</h3>
+    <ul class="tight">
+      <li><b>Ships Newsprint, keeps Ember's option open.</b> Day one is the cheap change —
+          re-point tokens, delete the surface fills, carry nesting on the spine. But because
+          the values are generated rather than typed, the second palette costs one number
+          instead of another twelve hexes.</li>
+      <li><b>Neutrals are near-grey on purpose, not by accident.</b> Chroma runs
+          0.004&ndash;0.018 across the six neutral steps — enough that the paper is warm and
+          the rules agree with the accent, far too little to read as sepia. This is Ember's
+          stated failure mode, dodged by holding chroma down rather than by desaturating ink
+          as a special case. The two accent steps sit far outside that band, at 0.171 and
+          0.181.</li>
+      <li><b>The accents are authored against the gamut boundary.</b> Both are the exact
+          <code>oklch()</code> coordinates of the colours Newsprint arrived at by hand —
+          <code>#c2450a</code> and <code>#ff7a33</code> — which is the useful proof that the
+          ramp can reach a hand-picked result rather than merely approximate one. It is also
+          where the first draft went wrong: the earlier dark accent asked for
+          <code>L .780 C .150</code>, which sRGB cannot hold at this hue, so the browser
+          clipped it and returned something visibly duller than the ramp specified. Ask for
+          more chroma than the space has and you get silent desaturation, not an error.</li>
+      <li><b>One correction to Ember's claim, and it matters.</b> Ember says contrast is
+          preserved because only the hue channel moves. That is true of the neutrals and
+          false of the accent — see below.</li>
+    </ul>
+
+    <div class="tbl">
+      <table>
+        <caption>What actually happens when the hue moves (36 hues, light mode, on white)</caption>
+        <thead><tr><th>Pair</th><th>Range across all hues</th><th>Spread</th><th>Holds AA?</th></tr></thead>
+        <tbody>
+          <tr><td>body on surface</td><td class="num">18.38 &ndash; 18.57:1</td><td class="num">0.19</td><td><span class="grade aaa">AAA</span> everywhere</td></tr>
+          <tr><td>muted on surface</td><td class="num">5.91 &ndash; 6.08:1</td><td class="num">0.17</td><td><span class="grade aa">AA</span> everywhere</td></tr>
+          <tr><td>signal on surface</td><td class="num">3.92 &ndash; 5.19:1</td><td class="num">1.27</td><td>fails over much of the wheel</td></tr>
+          <tr><td>header ink on signal</td><td class="num">3.73 &ndash; 4.94:1</td><td class="num">1.20</td><td>fails over much of the wheel</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      The neutrals are effectively hue-independent — a fifth of a point of drift across the
+      whole wheel, because at chroma 0.018 there is nothing for sRGB to clip. The saturated
+      step is a different animal: hold its lightness and chroma fixed and the gamut boundary
+      moves under it, taking luminance with it. A teal accent lands at 3.92:1 where the
+      orange one sits at 5.04:1 — below the AA floor, and at this chroma it is below it for
+      most of the wheel rather than just near 180°.
+    </p>
+    <p>
+      So a free hue does not get the accent for free. Its lightness has to be solved per hue —
+      sweeping the solve, the correction lives in <code>L 0.520&ndash;0.590</code> and brings
+      the worst case back to 4.50:1 — and its chroma has to be clamped to the boundary as
+      well, since 0.171 is unreachable at 19 of the 36 hues sampled. That is a 30-entry table
+      or a build step, not a run-time cost, but it is the part of Ember's "one number" promise
+      that has to be paid for.
+    </p>
+
+    <div class="tbl">
+      <table>
+        <caption>Measured contrast &mdash; hue 45</caption>
+        <thead><tr><th>Pair</th><th>Light</th><th></th><th>Dark</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>body on surface</td><td class="num">18.51:1</td><td><span class="grade aaa">AAA</span></td><td class="num">15.27:1</td><td><span class="grade aaa">AAA</span></td></tr>
+          <tr><td>muted on surface</td><td class="num">6.04:1</td><td><span class="grade aa">AA</span></td><td class="num">7.22:1</td><td><span class="grade aaa">AAA</span></td></tr>
+          <tr><td>signal on surface</td><td class="num">5.04:1</td><td><span class="grade aa">AA</span></td><td class="num">6.91:1</td><td><span class="grade aa">AA</span></td></tr>
+          <tr><td>header ink on signal</td><td class="num">4.80:1</td><td><span class="grade aa">AA</span></td><td class="num">7.04:1</td><td><span class="grade aaa">AAA</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ======================= COMPARISON ======================= -->
+
+  <section class="band">
+    <h2 class="name">Side by side</h2>
+
+    <div class="compare">
+      <table>
+        <thead>
+          <tr><th>Overhaul</th><th>Orange</th><th>Ground</th><th>New machinery</th><th>Effort</th><th>Identity risk</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row" style="color:#c2450a">Newsprint</th>
+            <td>Signal only</td><td>Warm paper</td>
+            <td>Contrast axis</td><td>Low</td><td>Low &mdash; still reads as HN</td>
+          </tr>
+          <tr>
+            <th scope="row" style="color:#a8480c">Ember</th>
+            <td>Everything</td><td>Warm, one hue</td>
+            <td><code>oklch()</code> ramp from one hue</td><td>Medium</td><td>Low &mdash; more HN than HN</td>
+          </tr>
+          <tr>
+            <th scope="row" style="color:#ae470b">Slate</th>
+            <td>Signal only</td><td>Cool desaturated</td>
+            <td>Semantic colour layer</td><td>Medium</td><td>High &mdash; reads as a different product</td>
+          </tr>
+          <tr>
+            <th scope="row" style="color:#c04800">Letterpress</th>
+            <td>Signal only</td><td>Warm paper, generated</td>
+            <td>Ramp from one hue, accent lightness solved per hue</td>
+            <td>Low now, medium later</td><td>Low &mdash; ships as Newsprint</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <p><strong>Recommendation: Newsprint, with Ember's hue machinery underneath it.</strong>
+        That combination is specified above as <strong>Letterpress</strong>, so the
+        recommendation is a thing you can look at rather than an instruction to go and
+        assemble one. Newsprint is the cheapest and the least likely to be regretted — it
+        removes surfaces rather than adding colour, and the current design's weakest moments
+        have all been places where a fill fought the text on it.</p>
+      <p>Ember's real contribution is not the palette but the ramp: deriving the scale from one
+        <code>--hnes-hue</code> is worth building regardless of which look ships, because it
+        turns every future palette into one number. The caveat Letterpress adds is that the
+        number only buys you the neutrals for free — the accent needs its lightness solved per
+        hue or a teal build quietly fails AA. Slate is the most interesting and the one
+        to prototype behind the theme toggle rather than commit to — a cool Hacker News is a
+        product decision, not a styling one.</p>
+    </div>
+  </section>
+
+  <footer>
+    <span>HNES 2.0.0 &middot; MV3</span>
+    <span>Contrast computed per WCAG 2.1 relative luminance</span>
+    <span>Composes with any comment-UX direction</span>
+    <span>Proposal &mdash; nothing here is implemented</span>
+  </footer>
+
+</div>
+</body>
+</html>

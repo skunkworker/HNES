@@ -1,0 +1,1164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Three design directions for the HNES comment UI: Rail, Density and Focus.">
+<title>HNES — three directions for the comment UI</title>
+<style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { margin: 0; }
+    img, svg, video { max-width: 100%; height: auto; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    table { border-collapse: collapse; }
+</style>
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --paper:   #f4f4f0;
+    --raised:  #fbfbf8;
+    --ink:     #1a1a17;
+    --ink-2:   #55534b;
+    --ink-3:   #8a877c;
+    --rule:    #dcdad1;
+    --rule-2:  #ebe9e2;
+    --accent:  #a8480c;
+    --accent-wash: #f2e6dc;
+    --ok:      #3f6b3a;
+    --warn:    #7d5a13;
+    --risk:    #8f3521;
+
+    /* Mockup palette — the real HNES token values, so the previews are honest. */
+    --m-page:        #f6f6ef;
+    --m-surface:     #fffffd;
+    --m-surface-alt: #eeeee4;
+    --m-surface-hi:  #e3e0d4;
+    --m-fg:          #1b1b19;
+    --m-muted:       #6a6a63;
+    --m-subtle:      #95958c;
+    --m-border:      #dedad0;
+    --m-accent:      #bd4f0d;
+
+    --ui:   system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+    --measure: 68ch;
+    --band-gap: clamp(3rem, 7vw, 5.5rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:   #12120f;
+      --raised:  #1b1b16;
+      --ink:     #eae8e0;
+      --ink-2:   #a5a297;
+      --ink-3:   #6f6d63;
+      --rule:    #2e2d26;
+      --rule-2:  #24231d;
+      --accent:  #ff8f45;
+      --accent-wash: #2a1c11;
+      --ok:      #7fb377;
+      --warn:    #d7a53f;
+      --risk:    #e08469;
+
+      --m-page:        #15150f;
+      --m-surface:     #1d1d16;
+      --m-surface-alt: #22221a;
+      --m-surface-hi:  #2b2b21;
+      --m-fg:          #e8e8de;
+      --m-muted:       #9a9a8e;
+      --m-subtle:      #6f6f66;
+      --m-border:      #33332a;
+      --m-accent:      #ff8f45;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:   #12120f;
+    --raised:  #1b1b16;
+    --ink:     #eae8e0;
+    --ink-2:   #a5a297;
+    --ink-3:   #6f6d63;
+    --rule:    #2e2d26;
+    --rule-2:  #24231d;
+    --accent:  #ff8f45;
+    --accent-wash: #2a1c11;
+    --ok:      #7fb377;
+    --warn:    #d7a53f;
+    --risk:    #e08469;
+
+    --m-page:        #15150f;
+    --m-surface:     #1d1d16;
+    --m-surface-alt: #22221a;
+    --m-surface-hi:  #2b2b21;
+    --m-fg:          #e8e8de;
+    --m-muted:       #9a9a8e;
+    --m-subtle:      #6f6f66;
+    --m-border:      #33332a;
+    --m-accent:      #ff8f45;
+  }
+
+  :root[data-theme="light"] {
+    --paper:   #f4f4f0;
+    --raised:  #fbfbf8;
+    --ink:     #1a1a17;
+    --ink-2:   #55534b;
+    --ink-3:   #8a877c;
+    --rule:    #dcdad1;
+    --rule-2:  #ebe9e2;
+    --accent:  #a8480c;
+    --accent-wash: #f2e6dc;
+    --ok:      #3f6b3a;
+    --warn:    #7d5a13;
+    --risk:    #8f3521;
+
+    --m-page:        #f6f6ef;
+    --m-surface:     #fffffd;
+    --m-surface-alt: #eeeee4;
+    --m-surface-hi:  #e3e0d4;
+    --m-fg:          #1b1b19;
+    --m-muted:       #6a6a63;
+    --m-subtle:      #95958c;
+    --m-border:      #dedad0;
+    --m-accent:      #bd4f0d;
+  }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--ui);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 clamp(1.1rem, 4vw, 2.5rem);
+  }
+
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    padding: clamp(3rem, 9vw, 5.5rem) 0 clamp(2rem, 5vw, 3rem);
+    border-bottom: 1px solid var(--rule);
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 1.4rem;
+  }
+  .eyebrow b { color: var(--accent); font-weight: 600; }
+  h1 {
+    font-size: clamp(2rem, 5.4vw, 3.1rem);
+    line-height: 1.06;
+    letter-spacing: -.028em;
+    font-weight: 660;
+    margin: 0 0 1.1rem;
+    max-width: 19ch;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-size: clamp(1.02rem, 1.6vw, 1.15rem);
+    color: var(--ink-2);
+    max-width: var(--measure);
+    margin: 0;
+  }
+
+  /* ---------- shared bits ---------- */
+
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin: 2.6rem 0 0;
+  }
+  .fact { background: var(--paper); padding: .9rem 1rem; }
+  .fact dt {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 .3rem;
+  }
+  .fact dd {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 1.16rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .fact dd small { font-size: .74rem; color: var(--ink-3); }
+
+  section { padding: var(--band-gap) 0 0; }
+  .band { border-top: 1px solid var(--rule); }
+
+  h2 {
+    font-size: clamp(1.45rem, 3vw, 1.95rem);
+    line-height: 1.15;
+    letter-spacing: -.02em;
+    font-weight: 640;
+    margin: 0 0 .55rem;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 600;
+    margin: 2rem 0 .7rem;
+  }
+  p { max-width: var(--measure); }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .42em;
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: .28em .7em;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .chip--low  { color: var(--ok); }
+  .chip--med  { color: var(--warn); }
+  .chip--high { color: var(--risk); }
+
+  .lede { color: var(--ink-2); }
+
+  ul.tight { margin: 0; padding-left: 1.1rem; max-width: var(--measure); }
+  ul.tight li { margin-bottom: .5rem; }
+  ul.tight code, p code, td code {
+    font-family: var(--mono);
+    font-size: .85em;
+    background: var(--rule-2);
+    padding: .1em .38em;
+    border-radius: 3px;
+  }
+
+  .proposal {
+    display: grid;
+    gap: clamp(1.6rem, 3.5vw, 2.8rem);
+    align-items: start;
+  }
+  @media (min-width: 940px) {
+    .proposal { grid-template-columns: minmax(0, 21rem) minmax(0, 1fr); }
+    .proposal__demo { position: sticky; top: 1.5rem; }
+  }
+
+  .titlerow {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: .8rem;
+    margin-bottom: .3rem;
+  }
+  .codename {
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  /* spec strip */
+  .spec {
+    margin-top: 1.1rem;
+    border: 1px solid var(--rule);
+    background: var(--raised);
+    overflow-x: auto;
+  }
+  .spec table { border-collapse: collapse; width: 100%; min-width: 30rem; }
+  .spec caption {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: .66rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    padding: .7rem .9rem .1rem;
+  }
+  .spec th, .spec td {
+    text-align: left;
+    padding: .5rem .9rem;
+    font-family: var(--mono);
+    font-size: .78rem;
+    font-variant-numeric: tabular-nums;
+    border-top: 1px solid var(--rule-2);
+  }
+  .spec th { color: var(--ink-3); font-weight: 500; }
+  .spec td { color: var(--ink-2); }
+  .spec td.to { color: var(--accent); }
+
+  /* ---------- mockup shell ---------- */
+
+  .mock {
+    background: var(--m-page);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 14px;
+    color: var(--m-fg);
+    font-size: 14px;
+    line-height: 1.62;
+    overflow-x: auto;
+  }
+  .mock__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .6rem;
+    margin-bottom: .85rem;
+    padding-bottom: .6rem;
+    border-bottom: 1px solid var(--m-border);
+  }
+  .mock__label {
+    font-family: var(--mono);
+    font-size: .66rem;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+    color: var(--m-subtle);
+  }
+  .segmented { display: flex; gap: 2px; }
+  .segmented button {
+    font: inherit;
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .06em;
+    padding: .3em .72em;
+    color: var(--m-muted);
+    background: transparent;
+    border: 1px solid var(--m-border);
+    cursor: pointer;
+    border-radius: 3px;
+  }
+  .segmented button[aria-pressed="true"] {
+    color: var(--m-page);
+    background: var(--m-accent);
+    border-color: var(--m-accent);
+  }
+  .ghostbtn {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .06em;
+    padding: .3em .72em;
+    color: var(--m-muted);
+    background: transparent;
+    border: 1px solid var(--m-border);
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .ghostbtn:hover { color: var(--m-accent); border-color: var(--m-accent); }
+
+  /* shared comment primitives */
+  .c-user { font-weight: 600; color: var(--m-fg); }
+  .c-age, .c-meta { color: var(--m-muted); font-size: 12px; }
+  .c-body { margin: 0; }
+  .c-body + .c-body { margin-top: .6em; }
+  .arrow {
+    width: 0; height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 8px solid var(--m-subtle);
+  }
+  .arrow.down { transform: rotate(180deg); }
+
+  /* ---------- mock: baseline (today) ---------- */
+
+  .mk-today .cm {
+    background: var(--m-surface);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+  }
+  .mk-today .cm.alt { background: var(--m-surface-alt); }
+  .mk-today .hd {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--m-muted);
+  }
+  .mk-today .votecol {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    width: 12px;
+    height: 26px;
+    flex: none;
+  }
+  .mk-today .collapser {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px; height: 26px;
+    flex: none;
+    border-radius: 6px;
+    color: var(--m-fg);
+    font-size: 12px;
+  }
+  .mk-today .bodywrap { margin-left: 54px; }
+  .mk-today .kids {
+    margin: 8px 0 0 12px;
+    padding-left: 12px;
+    border-left: 2px solid var(--m-border);
+  }
+
+  /* ---------- mock: rail ---------- */
+
+  .mk-rail .cm {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr);
+    background: var(--m-surface);
+    border-radius: 6px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .mk-rail .cm.alt { background: var(--m-surface-alt); }
+  .mk-rail .rail {
+    all: unset;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 0;
+    cursor: pointer;
+    position: relative;
+    box-sizing: border-box;
+  }
+  .mk-rail .rail::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 42px;
+    bottom: 8px;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--m-border);
+    transition: background-color .12s ease;
+  }
+  .mk-rail .rail:hover::after,
+  .mk-rail .rail:focus-visible::after { background: var(--m-accent); }
+  .mk-rail .rail .arrow { transition: border-bottom-color .12s ease; }
+  .mk-rail .rail:hover .arrow { border-bottom-color: var(--m-accent); }
+  .mk-rail .cm.is-collapsed .rail::after { display: none; }
+  .mk-rail .pane { padding: 8px 12px 10px 2px; min-width: 0; }
+  .mk-rail .hd {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 12px;
+  }
+  .mk-rail .cm.is-collapsed .body { display: none; }
+  .mk-rail .body { margin-top: .35rem; }
+  .mk-rail .replycount {
+    font-size: 11px;
+    color: var(--m-muted);
+    background: var(--m-surface-hi);
+    border-radius: 999px;
+    padding: 1px 8px;
+    display: none;
+  }
+  .mk-rail .cm.is-collapsed .replycount { display: inline-block; }
+  .mk-rail .kids { margin: 0 0 10px 30px; }
+  .mk-rail .foot {
+    margin-top: .5rem;
+    font-size: 12px;
+    color: var(--m-subtle);
+    display: flex;
+    gap: 12px;
+  }
+
+  /* ---------- mock: density ---------- */
+
+  .mk-dense { --d-pad: 10px; --d-gap: 10px; --d-size: 14px; --d-lead: 1.62; }
+  .mk-dense[data-density="compact"] { --d-pad: 6px;  --d-gap: 6px;  --d-size: 13.5px; --d-lead: 1.5; }
+  .mk-dense[data-density="dense"]   { --d-pad: 3px;  --d-gap: 3px;  --d-size: 13px;   --d-lead: 1.38; }
+
+  .mk-dense .cm {
+    padding: var(--d-pad) 12px;
+    margin-bottom: var(--d-gap);
+    background: var(--m-surface);
+    border-radius: 6px;
+    font-size: var(--d-size);
+    line-height: var(--d-lead);
+    transition: padding .14s ease, margin .14s ease;
+  }
+  .mk-dense .cm.alt { background: var(--m-surface-alt); }
+  .mk-dense[data-density="dense"] .cm {
+    background: none;
+    border-radius: 0;
+    border-bottom: 1px solid var(--m-border);
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .mk-dense[data-density="dense"] .cm.alt { background: none; }
+  .mk-dense .hd { display: flex; align-items: baseline; gap: 8px; font-size: 12px; }
+  .mk-dense .body { margin-top: .25rem; }
+  .mk-dense .kids {
+    margin: var(--d-gap) 0 0 10px;
+    padding-left: 10px;
+    border-left: 2px solid var(--m-border);
+  }
+
+  /* ---------- mock: focus ---------- */
+
+  .mk-focus .cm {
+    background: var(--m-surface);
+    border-radius: 6px;
+    padding: 9px 12px;
+    margin-bottom: 10px;
+    position: relative;
+    transition: opacity .18s ease;
+  }
+  .mk-focus .cm.alt { background: var(--m-surface-alt); }
+  .mk-focus.is-marked .cm.read { opacity: .42; }
+  .mk-focus .cm.fresh { box-shadow: inset 3px 0 0 var(--m-accent); }
+  .mk-focus .hd { display: flex; align-items: baseline; gap: 8px; font-size: 12px; flex-wrap: wrap; }
+  .mk-focus .newtag {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--m-accent);
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    padding: 0 .4em;
+  }
+  .mk-focus .body { margin-top: .25rem; }
+  .mk-focus .kids {
+    margin: 10px 0 0 10px;
+    padding-left: 10px;
+    border-left: 2px solid var(--m-border);
+  }
+  .mk-focus__layout { display: flex; gap: 12px; align-items: stretch; }
+  .mk-focus__stream { flex: 1; min-width: 0; }
+  .minimap {
+    flex: none;
+    width: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-top: 2px;
+  }
+  .minimap i {
+    display: block;
+    border-radius: 2px;
+    background: var(--m-border);
+  }
+  .minimap i.fresh { background: var(--m-accent); }
+  .minimap i.here { background: var(--m-muted); }
+
+  /* ---------- comparison ---------- */
+
+  .compare { overflow-x: auto; border: 1px solid var(--rule); margin-top: 1.4rem; }
+  .compare table { border-collapse: collapse; width: 100%; min-width: 40rem; }
+  .compare th, .compare td {
+    text-align: left;
+    padding: .72rem .9rem;
+    border-top: 1px solid var(--rule-2);
+    font-size: .87rem;
+    vertical-align: top;
+  }
+  .compare thead th {
+    border-top: 0;
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  .compare tbody th {
+    font-family: var(--mono);
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .compare td { color: var(--ink-2); }
+
+  .callout {
+    border-left: 2px solid var(--accent);
+    background: var(--accent-wash);
+    padding: 1rem 1.2rem;
+    margin: 1.6rem 0 0;
+    max-width: var(--measure);
+  }
+  .callout p { margin: 0; }
+  .callout p + p { margin-top: .7rem; }
+
+  footer {
+    margin-top: var(--band-gap);
+    border-top: 1px solid var(--rule);
+    padding: 1.6rem 0 3.5rem;
+    font-family: var(--mono);
+    font-size: .72rem;
+    color: var(--ink-3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: .6rem 1.6rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">HNES <b>&middot;</b> comment UI <b>&middot;</b> three directions</p>
+    <h1>Where the comment tree goes next</h1>
+    <p class="standfirst">
+      The MV3 port and the stylesheet rebuild are done and measuring clean. These are three
+      directions for what to build on top of it — one cheap, one structural, one behavioural.
+      Every mockup below is live: click the rails, switch the density, mark the thread read.
+    </p>
+
+    <dl class="facts">
+      <div class="fact">
+        <dt>Body indent</dt>
+        <dd>54<small>px</small></dd>
+      </div>
+      <div class="fact">
+        <dt>Collapse target</dt>
+        <dd>26<small>&times;26</small></dd>
+      </div>
+      <div class="fact">
+        <dt>Collapsed row</dt>
+        <dd>34<small>px</small></dd>
+      </div>
+      <div class="fact">
+        <dt>Stylesheet</dt>
+        <dd>259<small> rules</small></dd>
+      </div>
+      <div class="fact">
+        <dt>Unused tokens</dt>
+        <dd>0<small> / 62</small></dd>
+      </div>
+    </dl>
+  </header>
+
+  <section>
+    <h2>The baseline</h2>
+    <p class="lede">
+      Today a comment is a card. The vote column and the collapse button sit in a fixed
+      gutter, the body indents 54&nbsp;px to clear both, and nesting is carried by a 2&nbsp;px
+      spine. It is correct and it measures clean — but the collapse control is still a
+      26&nbsp;px square, and the header carries five separate elements before the first word
+      of the comment.
+    </p>
+
+    <div class="mock mk-today" style="margin-top:1.6rem">
+      <div class="mock__bar"><span class="mock__label">Current build</span></div>
+
+      <div class="cm">
+        <div class="hd">
+          <span class="votecol"><i class="arrow"></i><i class="arrow down"></i></span>
+          <span class="collapser">[&ndash;]</span>
+          <span class="c-user">keiferski</span>
+          <span class="c-age">46 minutes ago</span>
+        </div>
+        <div class="bodywrap">
+          <p class="c-body">The problem was never the tooling. Nobody agrees on what "done" means
+            before they start, and no amount of process fixes a disagreement that never got stated.</p>
+        </div>
+      </div>
+
+      <div class="cm alt">
+        <div class="hd">
+          <span class="votecol"><i class="arrow"></i><i class="arrow down"></i></span>
+          <span class="collapser">[&ndash;]</span>
+          <span class="c-user">seizethecheese</span>
+          <span class="c-age">44 minutes ago</span>
+        </div>
+        <div class="bodywrap">
+          <p class="c-body">Strong agree, though I'd put it differently: the estimate is usually
+            fine. What drifts is the scope hiding behind it.</p>
+          <div class="kids">
+            <div class="cm">
+              <div class="hd">
+                <span class="votecol"><i class="arrow"></i><i class="arrow down"></i></span>
+                <span class="collapser">[&ndash;]</span>
+                <span class="c-user">ivolimmen</span>
+                <span class="c-age">31 minutes ago</span>
+              </div>
+              <div class="bodywrap">
+                <p class="c-body">That matches what I've seen. The scope moves quietly and
+                  everyone keeps quoting the original number.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ RAIL ============================ -->
+
+  <section class="band">
+    <div class="proposal">
+      <div>
+        <p class="codename">Direction one</p>
+        <div class="titlerow">
+          <h2>Rail</h2>
+          <span class="chip chip--med">Medium &middot; structural</span>
+        </div>
+        <p class="lede">
+          Collapse the gutter into a single control surface. The vote arrows, the collapse
+          action and the thread spine become one continuous rail running the full height of
+          the comment — so the collapse target grows from 676&nbsp;px&sup2; to the whole
+          left edge, and the header loses two elements.
+        </p>
+
+        <h3>What changes</h3>
+        <ul class="tight">
+          <li><code>.hnes-comment</code> becomes a two-column grid: rail, then pane.</li>
+          <li>The <code>.collapser</code> element goes away entirely — the rail owns the click.</li>
+          <li>The spine moves off <code>.replies</code> and onto the rail, so hovering a
+              subthread lights the comment it belongs to rather than a line beside it.</li>
+          <li>Body indent drops 54&nbsp;px &rarr; 30&nbsp;px, which buys back real width at depth.</li>
+          <li><code>[+]</code>/<code>[&ndash;]</code> is replaced by rail state; the reply count
+              pill carries the collapsed signal.</li>
+        </ul>
+
+        <h3>Cost</h3>
+        <p>
+          Template change in <code>renderComment</code> plus a rewrite of the comment block in
+          the stylesheet. The rail must be a real <code>&lt;button&gt;</code> for keyboard
+          reach — currently the collapser is an <code>&lt;a&gt;</code> with no href, which is
+          not focusable.
+        </p>
+      </div>
+
+      <div class="proposal__demo">
+        <div class="mock mk-rail">
+          <div class="mock__bar">
+            <span class="mock__label">Click any rail to collapse</span>
+          </div>
+
+          <div class="cm">
+            <button class="rail" type="button" aria-label="Collapse comment by keiferski">
+              <i class="arrow"></i><i class="arrow down"></i>
+            </button>
+            <div class="pane">
+              <div class="hd">
+                <span class="c-user">keiferski</span>
+                <span class="c-age">46 minutes ago</span>
+                <span class="replycount">3 replies</span>
+              </div>
+              <div class="body">
+                <p class="c-body">The problem was never the tooling. Nobody agrees on what "done"
+                  means before they start, and no amount of process fixes a disagreement that
+                  never got stated.</p>
+                <div class="foot"><span>reply</span><span>parent</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="cm alt">
+            <button class="rail" type="button" aria-label="Collapse comment by seizethecheese">
+              <i class="arrow"></i><i class="arrow down"></i>
+            </button>
+            <div class="pane">
+              <div class="hd">
+                <span class="c-user">seizethecheese</span>
+                <span class="c-age">44 minutes ago</span>
+                <span class="replycount">1 reply</span>
+              </div>
+              <div class="body">
+                <p class="c-body">Strong agree, though I'd put it differently: the estimate is
+                  usually fine. What drifts is the scope hiding behind it.</p>
+                <div class="foot"><span>reply</span><span>parent</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="kids">
+            <div class="cm">
+              <button class="rail" type="button" aria-label="Collapse comment by ivolimmen">
+                <i class="arrow"></i><i class="arrow down"></i>
+              </button>
+              <div class="pane">
+                <div class="hd">
+                  <span class="c-user">ivolimmen</span>
+                  <span class="c-age">31 minutes ago</span>
+                  <span class="replycount">no replies</span>
+                </div>
+                <div class="body">
+                  <p class="c-body">That matches what I've seen. The scope moves quietly and
+                    everyone keeps quoting the original number.</p>
+                  <div class="foot"><span>reply</span><span>parent</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="spec">
+          <table>
+            <caption>Token &amp; geometry delta</caption>
+            <thead>
+              <tr><th>What</th><th>Now</th><th>Rail</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Collapse hit area</td><td>26 &times; 26</td><td class="to">30 &times; full height</td></tr>
+              <tr><td>Body indent</td><td>54 px</td><td class="to">30 px</td></tr>
+              <tr><td>Header children</td><td>5</td><td class="to">3</td></tr>
+              <tr><td><code>--hnes-control</code></td><td>26 px</td><td class="to">retired</td></tr>
+              <tr><td>Spine owner</td><td><code>.replies</code></td><td class="to"><code>.rail</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ DENSITY ============================ -->
+
+  <section class="band">
+    <div class="proposal">
+      <div>
+        <p class="codename">Direction two</p>
+        <div class="titlerow">
+          <h2>Density</h2>
+          <span class="chip chip--low">Low &middot; tokens only</span>
+        </div>
+        <p class="lede">
+          One control, three settings, no new layout. Comfortable is today's card. Compact
+          tightens the gaps. Dense drops the card entirely and falls back to hairline-separated
+          rows — closer to what HN veterans actually want on a 400-comment thread.
+        </p>
+
+        <h3>What changes</h3>
+        <ul class="tight">
+          <li>A <code>data-hnes-density</code> attribute on <code>&lt;html&gt;</code>, set by
+              <code>boot.js</code> before first paint exactly like the theme already is.</li>
+          <li>Three token blocks overriding <code>--hnes-gap-*</code>,
+              <code>--hnes-size-comment</code> and <code>--hnes-leading</code>. Nothing else.</li>
+          <li>A second nav control beside <code>theme: auto</code>, reusing the same
+              cycle-and-persist code path.</li>
+        </ul>
+
+        <h3>Cost</h3>
+        <p>
+          The cheapest of the three by a wide margin, and the token audit already proves the
+          groundwork is there — 62 tokens, none unused, no hardcoded literals left in the
+          comment block. This is close to configuration rather than design work.
+        </p>
+      </div>
+
+      <div class="proposal__demo">
+        <div class="mock mk-dense" id="densityMock" data-density="comfortable">
+          <div class="mock__bar">
+            <span class="mock__label">Reading density</span>
+            <div class="segmented" role="group" aria-label="Reading density">
+              <button type="button" data-density="comfortable" aria-pressed="true">comfortable</button>
+              <button type="button" data-density="compact" aria-pressed="false">compact</button>
+              <button type="button" data-density="dense" aria-pressed="false">dense</button>
+            </div>
+          </div>
+
+          <div class="cm">
+            <div class="hd">
+              <span class="c-user">keiferski</span><span class="c-age">46 minutes ago</span>
+            </div>
+            <div class="body"><p class="c-body">The problem was never the tooling. Nobody agrees
+              on what "done" means before they start.</p></div>
+          </div>
+
+          <div class="cm alt">
+            <div class="hd">
+              <span class="c-user">seizethecheese</span><span class="c-age">44 minutes ago</span>
+            </div>
+            <div class="body"><p class="c-body">Strong agree, though I'd put it differently: the
+              estimate is usually fine. What drifts is the scope hiding behind it.</p></div>
+            <div class="kids">
+              <div class="cm">
+                <div class="hd">
+                  <span class="c-user">ivolimmen</span><span class="c-age">31 minutes ago</span>
+                </div>
+                <div class="body"><p class="c-body">That matches what I've seen. The scope moves
+                  quietly and everyone keeps quoting the original number.</p></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="cm">
+            <div class="hd">
+              <span class="c-user">woeh</span><span class="c-age">22 minutes ago</span>
+            </div>
+            <div class="body"><p class="c-body">Counterpoint: on a long thread I want fewer pixels
+              per comment, not more. Reading and scanning are different jobs.</p></div>
+          </div>
+
+          <div class="cm alt">
+            <div class="hd">
+              <span class="c-user">peterldowns</span><span class="c-age">13 hours ago</span>
+            </div>
+            <div class="body"><p class="c-body">Worth noting the two modes want different line
+              lengths too, not just different padding.</p></div>
+          </div>
+        </div>
+
+        <div class="spec">
+          <table>
+            <caption>Token overrides per level</caption>
+            <thead>
+              <tr><th>Token</th><th>Comfortable</th><th>Compact</th><th>Dense</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>--hnes-gap-3</code></td><td>12 px</td><td>8 px</td><td class="to">4 px</td></tr>
+              <tr><td><code>--hnes-size-comment</code></td><td>15 px</td><td>14 px</td><td class="to">13 px</td></tr>
+              <tr><td><code>--hnes-leading</code></td><td>1.65</td><td>1.5</td><td class="to">1.38</td></tr>
+              <tr><td>Card surface</td><td>filled</td><td>filled</td><td class="to">hairline</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ FOCUS ============================ -->
+
+  <section class="band">
+    <div class="proposal">
+      <div>
+        <p class="codename">Direction three</p>
+        <div class="titlerow">
+          <h2>Focus</h2>
+          <span class="chip chip--high">High &middot; behavioural</span>
+        </div>
+        <p class="lede">
+          The extension already knows which comments you have seen — it stores a per-thread
+          read position and ships <code>.hnes-new</code> markers nobody really looks at. This
+          direction promotes that data from a border colour to the organising principle of
+          the page.
+        </p>
+
+        <h3>What changes</h3>
+        <ul class="tight">
+          <li>Comments read on a previous visit dim; new ones keep full contrast and take an
+              accent edge.</li>
+          <li>A thread minimap down the side — one tick per top-level comment, new ones lit,
+              current position marked. Click to jump.</li>
+          <li><code>n</code> / <code>p</code> to move between unread comments, building on the
+              keyboard work already queued for the <code>e.keyCode</code> migration.</li>
+          <li>The dimming is a toggle, not a mode — one control returns everything to full
+              contrast.</li>
+        </ul>
+
+        <h3>Cost</h3>
+        <p>
+          The largest, and the only one that changes behaviour rather than presentation.
+          It also leans on the read-state store, which currently has no expiry sweep — that
+          gap should be closed first or the store grows without bound.
+        </p>
+      </div>
+
+      <div class="proposal__demo">
+        <div class="mock mk-focus" id="focusMock">
+          <div class="mock__bar">
+            <span class="mock__label">Since your last visit</span>
+            <button class="ghostbtn" type="button" id="focusToggle" aria-pressed="false">dim read comments</button>
+          </div>
+
+          <div class="mk-focus__layout">
+            <div class="minimap" aria-hidden="true">
+              <i style="height:26px"></i>
+              <i style="height:34px"></i>
+              <i class="fresh" style="height:22px"></i>
+              <i class="fresh here" style="height:30px"></i>
+              <i style="height:18px"></i>
+            </div>
+
+            <div class="mk-focus__stream">
+              <div class="cm read">
+                <div class="hd">
+                  <span class="c-user">keiferski</span><span class="c-age">13 hours ago</span>
+                </div>
+                <div class="body"><p class="c-body">The problem was never the tooling. Nobody
+                  agrees on what "done" means before they start.</p></div>
+              </div>
+
+              <div class="cm alt read">
+                <div class="hd">
+                  <span class="c-user">peterldowns</span><span class="c-age">12 hours ago</span>
+                </div>
+                <div class="body"><p class="c-body">Worth noting the two modes want different
+                  line lengths too, not just different padding.</p></div>
+              </div>
+
+              <div class="cm fresh">
+                <div class="hd">
+                  <span class="c-user">seizethecheese</span>
+                  <span class="c-age">44 minutes ago</span>
+                  <span class="newtag">new</span>
+                </div>
+                <div class="body">
+                  <p class="c-body">Strong agree, though I'd put it differently: the estimate is
+                    usually fine. What drifts is the scope hiding behind it.</p>
+                </div>
+                <div class="kids">
+                  <div class="cm fresh">
+                    <div class="hd">
+                      <span class="c-user">ivolimmen</span>
+                      <span class="c-age">31 minutes ago</span>
+                      <span class="newtag">new</span>
+                    </div>
+                    <div class="body"><p class="c-body">That matches what I've seen. The scope
+                      moves quietly and everyone keeps quoting the original number.</p></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="cm alt read">
+                <div class="hd">
+                  <span class="c-user">woeh</span><span class="c-age">11 hours ago</span>
+                </div>
+                <div class="body"><p class="c-body">Counterpoint: on a long thread I want fewer
+                  pixels per comment, not more.</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="spec">
+          <table>
+            <caption>What it builds on</caption>
+            <thead>
+              <tr><th>Existing piece</th><th>Status</th><th>Needed</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Per-thread read position</td><td>stored</td><td class="to">expiry sweep</td></tr>
+              <tr><td><code>.hnes-new</code> markers</td><td>rendered</td><td class="to">promote to dimming</td></tr>
+              <tr><td>Collapse state store</td><td>unbounded</td><td class="to">add <code>expire</code></td></tr>
+              <tr><td>Keyboard handling</td><td><code>e.keyCode</code></td><td class="to"><code>e.key</code> + modifier guard</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ RECOMMENDATION ============================ -->
+
+  <section class="band">
+    <h2>Side by side</h2>
+
+    <div class="compare">
+      <table>
+        <thead>
+          <tr>
+            <th>Direction</th><th>Effort</th><th>Touches</th><th>Payoff</th><th>Main risk</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Rail</th>
+            <td>Medium</td>
+            <td>Template + comment CSS</td>
+            <td>Much larger collapse target; 24&nbsp;px width back at every level</td>
+            <td>Touches the markup every other rule depends on</td>
+          </tr>
+          <tr>
+            <th scope="row">Density</th>
+            <td>Low</td>
+            <td>Tokens + one nav control</td>
+            <td>Serves scanning and reading without picking one</td>
+            <td>Dense mode needs its own contrast pass</td>
+          </tr>
+          <tr>
+            <th scope="row">Focus</th>
+            <td>High</td>
+            <td>Read-state JS, keyboard, minimap</td>
+            <td>Makes revisiting a live thread genuinely fast</td>
+            <td>Behaviour change; depends on an unbounded store</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <p><strong>Recommendation: Density first, then Rail.</strong> Density is nearly free —
+        the token layer is already complete and audited, so it is a config change wearing a
+        design proposal's clothes, and it settles the scanning-versus-reading argument without
+        committing the layout to either.</p>
+      <p>Rail is the one with the real design payoff, but it rewrites the markup that the
+        entire comment stylesheet hangs off. Worth doing on its own, with the geometry checks
+        from this session re-run against it. Focus is genuinely valuable and genuinely the
+        largest — and it should wait until the collapse-state store has an expiry, since it
+        would lean harder on exactly the data that currently grows forever.</p>
+    </div>
+  </section>
+
+  <footer>
+    <span>HNES 2.0.0 &middot; MV3</span>
+    <span>Baseline: 259 rules, 62 tokens, 0 unused</span>
+    <span>Verified 0 overflow at 1280 / 900 / 780 / 600 / 420 / 375</span>
+    <span>Proposal &mdash; nothing here is implemented</span>
+  </footer>
+
+</div>
+
+<script>
+  // Density: one attribute drives the whole mockup, mirroring how the real
+  // implementation would swap token blocks on <html>.
+  (function () {
+    var mock = document.getElementById('densityMock');
+    if (!mock) return;
+    mock.querySelectorAll('.segmented button').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        mock.dataset.density = btn.dataset.density;
+        mock.querySelectorAll('.segmented button').forEach(function (b) {
+          b.setAttribute('aria-pressed', String(b === btn));
+        });
+      });
+    });
+  })();
+
+  // Rail: the whole left edge is the collapse control.
+  document.querySelectorAll('.mk-rail .rail').forEach(function (rail) {
+    rail.addEventListener('click', function () {
+      rail.closest('.cm').classList.toggle('is-collapsed');
+    });
+  });
+
+  // Focus: dimming is a toggle, not a mode.
+  (function () {
+    var mock = document.getElementById('focusMock');
+    var btn = document.getElementById('focusToggle');
+    if (!mock || !btn) return;
+    btn.addEventListener('click', function () {
+      var on = mock.classList.toggle('is-marked');
+      btn.setAttribute('aria-pressed', String(on));
+      btn.textContent = on ? 'show all comments' : 'dim read comments';
+    });
+  })();
+</script>
+</body>
+</html>
