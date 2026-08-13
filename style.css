@@ -14,7 +14,7 @@
 *
 * Colour is split in two: a SEED layer that a palette replaces wholesale, and a
 * DERIVED layer expressed as color-mix() over the seeds, which no palette ever
-* restates. That is what makes a palette eleven declarations instead of thirty.
+* restates. That is what makes a palette ten declarations instead of thirty.
 *
 * The mix percentages are fitted to the values this stylesheet shipped with, so
 * the split changed nothing on screen: every derived token lands within an Oklab
@@ -50,8 +50,11 @@
   --hnes-brand:         light-dark(#ab470a, #8f3b08);
   --hnes-orange:        light-dark(#bd4f0d, #ff8f45);
   /* Warm off-white rather than pure white — full white on saturated orange is
-     the "too strong" pairing that makes the header feel like it is buzzing. */
-  --hnes-orange-ink:    light-dark(#fff3e9, #fff3e9);
+     the "too strong" pairing that makes the header feel like it is buzzing.
+     One value for both themes only because classic's brand is burnt in both;
+     the palettes below do split it, since their header is the bright accent in
+     dark and the ink on it has to invert. */
+  --hnes-orange-ink:    #fff3e9;
 
   /* surfaces */
   --hnes-bg:            light-dark(#f6f6ef, #15150f);
@@ -80,7 +83,14 @@
   --hnes-selection:     light-dark(#ffd9bf, #5a3410);
 
   /* =========================================================================
-     DERIVED — formulas over the seeds. Palette-independent; never restated.
+     DERIVED — everything below is palette-independent and never restated by a
+     palette block. Two kinds live here: color-mix() formulas over the seeds,
+     which move when a seed moves, and fixed literals that answer to nothing
+     (--hnes-fg-strong, --hnes-danger, --hnes-new-user, --hnes-new-parent,
+     --hnes-current, --hnes-header-hover, --hnes-heat-1/2). The literals stay
+     beside the formulas they ramp with rather than in a section of their own —
+     splitting the heat scale or the state colours down the middle to sort them
+     by mechanism would cost more than it explains.
      ========================================================================= */
 
   /* Header ink at two weights plus the hover wash. Alpha over the ink token
@@ -245,18 +255,27 @@
 
    All four collapse --hnes-brand into --hnes-orange: each picked an accent that
    works as a header surface *and* as accent text, which is the job classic
-   needed two oranges for. Their --hnes-orange-ink flips to a dark value in dark
-   mode for the same reason — the header there is the bright accent, not a burnt
-   one, so the ink on it has to invert.
+   needed two oranges for. That collapse is the rule below rather than a line in
+   each block, so retinting a palette is one edit — restating the same literal
+   twice per palette is how a header surface silently stops matching its accent.
+   Their --hnes-orange-ink flips to a dark value in dark mode for the same
+   reason — the header there is the bright accent, not a burnt one, so the ink
+   on it has to invert.
 
-   :where() so these weigh (0,0,1), matching the :root they override and winning
-   on source order alone — same reason the density blocks use it, and what keeps
-   the responsive steps at the foot of the file working without knowing palettes
-   exist.
+   :where() so these weigh (0,1,0) — the same as the bare :root they override,
+   since :root is itself a pseudo-class — winning on source order alone. Same
+   reason the density blocks use it, and what keeps the responsive steps at the
+   foot of the file working without knowing palettes exist.
 
    Contrast measured per palette per theme on the eight load-bearing pairs; all
    clear WCAG AA, most AAA, none below classic.
    --------------------------------------------------------------------------- */
+
+/* classic is the unset state — applyMode and boot.js only ever set the
+   attribute for values past the first — so the presence of the attribute is
+   exactly "some palette other than classic". Ahead of the blocks below, so a
+   future palette that wants its two oranges back can just say so. */
+:root:where([data-hnes-palette]) { --hnes-brand: var(--hnes-orange); }
 
 :root:where([data-hnes-palette="newsprint"]) {
   --hnes-bg:            light-dark(#fdfdfc, #0d0d0c);
@@ -264,7 +283,6 @@
   --hnes-fg:            light-dark(#111110, #f3f2ec);
   --hnes-fg-muted:      light-dark(#5b5b57, #a3a29b);
   --hnes-border:        light-dark(#e4e4de, #2a2a27);
-  --hnes-brand:         light-dark(#c2450a, #ff7a33);
   --hnes-orange:        light-dark(#c2450a, #ff7a33);
   --hnes-orange-ink:    light-dark(#ffffff, #1a0d04);
   --hnes-fade-strong:   light-dark(#545453, #cdcdc7);
@@ -278,7 +296,6 @@
   --hnes-fg:            light-dark(#241a12, #f0e6dc);
   --hnes-fg-muted:      light-dark(#6b5443, #b09681);
   --hnes-border:        light-dark(#e8dbcd, #33281f);
-  --hnes-brand:         light-dark(#a8480c, #ff8f45);
   --hnes-orange:        light-dark(#a8480c, #ff8f45);
   --hnes-orange-ink:    light-dark(#fff4ea, #1a0d04);
   --hnes-fade-strong:   light-dark(#635a52, #ccc3ba);
@@ -292,7 +309,6 @@
   --hnes-fg:            light-dark(#14181a, #e3e8ea);
   --hnes-fg-muted:      light-dark(#5a656b, #96a0a6);
   --hnes-border:        light-dark(#d8dde0, #283035);
-  --hnes-brand:         light-dark(#ae470b, #ff7a33);
   --hnes-orange:        light-dark(#ae470b, #ff7a33);
   --hnes-orange-ink:    light-dark(#ffffff, #14181a);
   --hnes-fade-strong:   light-dark(#535759, #c1c5c7);
@@ -306,7 +322,6 @@
   --hnes-fg:            light-dark(#19120f, #f0ece9);
   --hnes-fg-muted:      light-dark(#6d605b, #aea29c);
   --hnes-border:        light-dark(#e6deda, #38312e);
-  --hnes-brand:         light-dark(#c04800, #ff7a34);
   --hnes-orange:        light-dark(#c04800, #ff7a34);
   --hnes-orange-ink:    light-dark(#fff8f5, #21110a);
   --hnes-fade-strong:   light-dark(#5b5451, #cbc7c4);
@@ -326,7 +341,7 @@
    comment page nearly all the wasted height is decoration rather than text, so
    flow lands close to compact's density without shrinking a single glyph.
 
-   Both blocks are wrapped in :where() so they weigh (0,0,1) — the same as the
+   Both blocks are wrapped in :where() so they weigh (0,1,0) — the same as the
    :root they override, winning only on source order. That is what lets the
    responsive blocks at the foot of the file retune a density-owned token
    without knowing density exists; at plain [data-hnes-density] specificity
@@ -657,9 +672,10 @@ html body .nav-drop-down a:hover {
  * The palette control owns its dropdown, unlike #user-hidden which pins itself
  * to the page edge — hence the positioned parent here and nowhere else.
  *
- * Right-aligned because this control is appended last and is therefore always
- * the rightmost thing in the nav: opening leftward is the only direction that
- * cannot push the menu off the viewport and reintroduce horizontal scroll.
+ * Right-aligned so the panel opens leftward, which is the direction that cannot
+ * push it off the viewport and reintroduce horizontal scroll: a nav control is
+ * never near the left edge, but this one is appended last and can sit close to
+ * the right one.
  */
 .hnes-nav-menu { position: relative; }
 .hnes-nav-menu > .nav-drop-down { right: 0; }

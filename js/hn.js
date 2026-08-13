@@ -928,13 +928,15 @@ var HN = {
      * one control: values[0] is the unset state and clears the attribute, so
      * "which values are real" is derived from the list rather than restated as a
      * condition somewhere else. Adding a mode is one entry in `values` plus the
-     * matching CSS block — and the same list in boot.js, which runs as a
-     * separate content script and cannot read this one.
+     * matching CSS block — and the same list in boot.js, which runs first and so
+     * cannot read this one.
      *
-     * `ui` picks the control, not the behaviour: both render from the same
-     * descriptor and write the same attribute and storage key. Cycling is right
-     * up to three values and stops being right past that, which is why palette
-     * is a menu — five values is four clicks to reach the last one.
+     * `ui` names an entry in MODE_UI, so a third kind of control is a builder
+     * plus a data change rather than another branch. It picks the control, not
+     * the behaviour: every rendering writes the same attribute and storage key
+     * through commitMode. Cycling is right up to three values and stops being
+     * right past that, which is why palette is a menu — five values is four
+     * clicks to reach the last one.
      *
      * theme:   auto -> light -> dark. 'auto' lets prefers-color-scheme decide;
      *          the explicit modes pin color-scheme, which is what the
@@ -972,21 +974,33 @@ var HN = {
 
     /*
      * boot.js already applied every stored value before first paint, so the only
-     * job on load is building the controls. One storage read covers all of them:
-     * separate reads resolve in separate tasks, which cost an extra round trip
-     * and leave the controls' left-to-right order up to whichever callback lands
-     * first.
+     * job on load is building the controls.
+     *
+     * The values come from boot.js's read rather than a second one. Beyond
+     * saving the round trip, it is what keeps the controls out of the reveal:
+     * initModeControls is called immediately before HN.reveal(), so a fresh
+     * storage read would land after the page is visible and the nav would
+     * visibly grow. boot.js's promise is already settled by document_end, so
+     * .then runs in this task's microtask checkpoint — before the first paint.
+     *
+     * The fallback covers hn.js running somewhere boot.js does not; today the
+     * manifest injects boot.js on the HN hosts only, and initModeControls is
+     * reached on those alone, but the guard costs one line.
      */
-    initModeToggles: function() {
+    initModeControls: function() {
       var nav = $('#top-navigation .nav-links').first();
       if (!nav.length) return;
 
-      chrome.storage.local.get(HN.MODES.map(function(spec) { return spec.key; }), function(items) {
+      var stored = window.hnesModes || new Promise(function(resolve) {
+        chrome.storage.local.get(HN.MODES.map(function(spec) { return spec.key; }), resolve);
+      });
+
+      stored.then(function(items) {
         HN.MODES.forEach(function(spec) {
-          // Index rather than name as state — the name is one lookup away and
-          // values[0] is the fallback for anything unset or unrecognised.
+          // The starting selection, by index — values[0] is the fallback for
+          // anything unset or unrecognised.
           var i = Math.max(spec.values.indexOf(items[spec.key]), 0),
-              build = spec.ui === 'menu' ? HN.buildModeMenu : HN.buildModeCycle;
+              build = HN.MODE_UI[spec.ui];
 
           // Appended already built, so a control never appears unlabelled and inert.
           nav.append(build(spec, i));
@@ -994,6 +1008,8 @@ var HN = {
       });
     },
 
+    /* `i` is genuinely state here — each click reads it, advances it and writes
+       it back. The menu below only needs it as a starting selection. */
     buildModeCycle: function(spec, i) {
       var link = $('<a/>').attr('href', 'javascript:void(0)').attr('title', spec.title),
           wrap = $('<span/>').addClass('hnes-nav-toggle').text('|').append(link);
@@ -1018,7 +1034,8 @@ var HN = {
           menu = $('<div/>').addClass('nav-drop-down'),
           wrap = $('<span/>').addClass('hnes-nav-toggle hnes-nav-menu more-arrow')
                              .text('|').append(link).append(menu),
-          close = function() { menu.hide(); link.removeClass('active'); };
+          open = false,
+          close = function() { open = false; menu.hide(); link.removeClass('active'); };
 
       link.text(spec.label + ': ' + spec.values[i]);
 
@@ -1030,7 +1047,6 @@ var HN = {
           e.stopPropagation();
           menu.find('a').removeClass('nav-active-link');
           option.addClass('nav-active-link');
-          i = index;
           link.text(spec.label + ': ' + value);
           HN.commitMode(spec, value);
           close();
@@ -1047,13 +1063,19 @@ var HN = {
         // leaving it set desyncs their next click from what is on screen.
         $('.nav-drop-down').not(menu).hide();
         $('.more-arrow > a.active').not(link).removeClass('active');
-        menu.toggle();
-        link.toggleClass('active', menu.is(':visible'));
+        // Tracked rather than read back off the DOM: jQuery's :visible measures
+        // the element, which forces a synchronous layout of the whole document —
+        // expensive on a long thread, and for a fact we already know.
+        open = !open;
+        menu.toggle(open);
+        link.toggleClass('active', open);
       });
 
-      // Click-away, which the older menus never got. The stopPropagation calls
-      // above are what keep clicks inside the menu from reaching this. Namespaced
-      // so it can be unbound without disturbing other document click handlers.
+      // Click-away, which the older menus never got. The trigger's
+      // stopPropagation is the load-bearing one — without it, opening the menu
+      // would immediately close it again. The options' call is belt-and-braces:
+      // they close explicitly, so bubbling here would be harmless. Namespaced so
+      // it can be unbound without disturbing other document click handlers.
       $(document).on('click.hnesMode', close);
 
       return wrap;
@@ -2046,6 +2068,15 @@ var HN = {
     }
 }
 
+/* Keyed by a descriptor's `ui`, so a third kind of control is an entry here and
+   a value there rather than another branch in initModeControls. Out here rather
+   than inside the literal above because the builders it points at are members of
+   that literal, and HN is not bound until it closes. */
+HN.MODE_UI = {
+  cycle: HN.buildModeCycle,
+  menu:  HN.buildModeMenu
+};
+
 
 //show new comment count on hckrnews.com
 if (window.location.host == "hckrnews.com") {
@@ -2096,7 +2127,7 @@ else {
       });
     }
 
-    HN.initModeToggles();
+    HN.initModeControls();
     HN.reveal();
   });
 }
