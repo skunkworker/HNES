@@ -1,0 +1,41 @@
+{
+  // Type-checks the shipped source without compiling it. There is no build step
+  // and this does not add one: the manifest points at the same files it always
+  // has, and `noEmit` means nothing here ever writes one.
+  //
+  // It lives under test/ because that is already the directory zip.sh excludes
+  // from both packages, so the extension is unchanged by its existence.
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+
+    // The one check worth having here. This code walks HN's markup positionally
+    // — td:nth-child(3), .subtext a:eq(1), $this.parent().prev() — against a
+    // server that serves rate-limited and malformed bodies, which is what
+    // test/degenerate.mjs exists to prove survivable. Everything querySelector
+    // returns is Element | null and this is what says so.
+    "strictNullChecks": true,
+
+    // Deliberately off. This is 2000 lines of jQuery callbacks whose parameters
+    // are genuinely untyped; turning it on buries the findings above under one
+    // error per callback and teaches nothing. Turn it on per file if a file is
+    // ever annotated properly.
+    "noImplicitAny": false,
+    "noImplicitThis": false,
+
+    // Chrome 123+ is the floor, so the language level is not the constraint.
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "preserve",
+    "types": ["chrome", "jquery"]
+  },
+  "include": [
+    "globals.d.ts",
+    "../background.js",
+    "../offscreen.js",
+    "../js/modes.js",
+    "../js/boot.js",
+    "../js/hn.js"
+  ]
+}

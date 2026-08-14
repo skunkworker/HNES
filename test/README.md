@@ -2,22 +2,67 @@
 
 There is no unit-test suite — almost everything HNES does is rewriting a page it
 does not control, so the useful tests drive a real Chrome with the extension
-loaded. These four cover what manual checking kept missing.
+loaded. These six cover what manual checking kept missing.
 
 ```sh
-cd test && npm install        # playwright only
+cd test && npm install        # playwright, typescript, two @types packages
+npm run typecheck             # no build step; reads the shipped source in place
 npm run migration             # the one that cannot be redone
 npm run tokens                # colour tokens, contrast, fade ladder
 npm run degenerate            # broken markup must not brick the page
+npm run session               # the logged-in pages, which nothing else sees
 npm run controls              # settings panel, persistence, cross-tab, orthogonality
 npm run pages                 # every page type, logged out
 ```
 
-`migration`, `tokens` and `degenerate` need no network and are deterministic.
-`controls` and `pages` hit live Hacker News and can be rate limited — see the
-warning under `pages.mjs`.
+`typecheck`, `migration`, `tokens`, `degenerate` and `session` need no network
+and are deterministic. `controls` and `pages` hit live Hacker News and can be
+rate limited — see the warning under `pages.mjs`.
 
 Screenshots land in `test/screenshots/`.
+
+## typecheck — tsc over the JavaScript, no TypeScript
+
+`tsconfig.json` sets `allowJs`, `checkJs` and `noEmit`, so the checker reads
+`background.js`, `offscreen.js` and the three content scripts exactly as the
+manifest loads them. Nothing is compiled and nothing is emitted; the repo is
+still the extension. It lives here because `zip.sh` already excludes `test/`
+from both packages.
+
+`strictNullChecks` is the reason to have it. This code walks HN's markup
+positionally — `td:nth-child(3)`, `.subtext a:eq(1)`, `$this.parent().prev()` —
+against a server that serves rate-limited and malformed bodies, which is what
+`degenerate.mjs` exists to prove survivable. `noImplicitAny` and
+`noImplicitThis` are off on purpose: two thousand lines of jQuery callbacks with
+genuinely untyped parameters would bury every real finding under one error per
+callback.
+
+`globals.d.ts` declares `HNESModes`, the one thing inference cannot see —
+`modes.js` assigns it onto `globalThis` from inside an IIFE. `HN` and
+`CommentTracker` are plain top-level `var`s and need no help. Because
+`declare var` adds the property to globalThis, `modes.js`'s own assignment is
+checked against that declaration, so the two cannot drift silently.
+
+**It is a report, not a gate.** The first run gave 113 errors and it still exits
+non-zero; wiring it into a release check means working that number down first.
+What it found:
+
+- **`hn.js` threw for every logged-in user on `/upvoted` and `/favorites`.** A
+  guard written `!= '/upvoted' || != '/favorites'` is true for every possible
+  path, so the two pages it names were the two it let through — and they are
+  exactly the two with no `?id=` for the next line to match against. Fixed.
+- **~38 implicit globals** — `link`, `domain`, `text`, `image`, `fnid`,
+  `whence`, `hmac`, `below_header`, `help`, `morelink`, `userscoreEl`, `i`,
+  `comments_link`, `user_drop_toggle`, `toggle_more_link`. Assignments with no
+  `var`, leaking into the isolated world and shared across every call.
+- **`.size()` at `hn.js:1650`**, removed from jQuery in 3.0 and absent from the
+  vendored 3.2.1. It never fires: the only caller passes `true`, so the branch
+  holding it is dead.
+- Smaller ones — `location.reload(true)` (the argument was dropped from the
+  spec), `visit(n.children[i], acc)` against a one-parameter `visit`, and
+  `var threadList` declared twice in `HNComments.apply`.
+- **~19 null-safety findings** on the positional walks. That list is the point
+  of the exercise: it is the only inventory of where HN's markup is assumed.
 
 ## migration.mjs — run this before any release that changes storage
 
@@ -76,6 +121,24 @@ revealed the page itself rather than that the stylesheet bailed it out.
 This is a real regression test, not a smoke test: removing the guard in
 `doLogin` makes exactly the two `/login` cases fail with the original
 `TypeError`, and restoring it makes all eight pass.
+
+## session.mjs — the logged-in pages
+
+Every other harness browses logged out, and two bugs have now hidden in that
+gap. The user menu rendered as a row of pills for as long as the header's pill
+rule existed. `/threads` and `/upvoted` without a `?id=` threw a TypeError that
+aborted the rewrite outright — no gear, no user menu, and the page revealed only
+by the stylesheet's two-second failsafe. Both are what a signed-in user sees
+every day; neither was visible to a harness that never signs in.
+
+No network: one logged-in body is served by route interception for every path,
+which is enough, because what is under test is what HNES does with `pathname`
+and the logout link. Logging in for real would need credentials and would
+rate-limit immediately.
+
+`pending` is the assertion that matters. It is still set if `reveal()` never
+ran, which is the tell for a throw partway through the rewrite — a page that
+still *looks* fine, because the failsafe animation shows it anyway.
 
 ## controls.mjs — the settings panel end to end
 

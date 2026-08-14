@@ -4,13 +4,18 @@
   "type": "module",
   "description": "Browser-driven checks for the HNES extension. Not part of the packaged extension.",
   "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
     "migration": "node migration.mjs",
     "tokens": "node tokens.mjs",
     "degenerate": "node degenerate.mjs",
+    "session": "node session.mjs",
     "controls": "node controls.mjs",
     "pages": "node pages.mjs"
   },
   "devDependencies": {
-    "playwright": "^1.62.0"
+    "@types/chrome": "^0.2.6",
+    "@types/jquery": "^4.0.1",
+    "playwright": "^1.62.0",
+    "typescript": "^7.0.2"
   }
 }

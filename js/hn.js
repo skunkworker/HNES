@@ -1964,8 +1964,21 @@ var HN = {
         hidden_div.append(link);
       }
       if (new_active) {
-        if (window.location.pathname != '/upvoted' || window.location.pathname != '/favorites') {
-          var user_id = window.location.search.match(/id=(\w+)/)[1];
+        /*
+         * `||` here made the guard always true — no path is both /upvoted and
+         * /favorites — so the two pages it names were the two it let through,
+         * and they are exactly the two with no ?id= to match. The deref below
+         * threw for every logged-in user on either of them. Found by the type
+         * checker; nothing tests a logged-in session.
+         *
+         * The match is checked as well as the path, because HN drops ?id= on
+         * more pages than these two when you are looking at your own.
+         */
+        var id_match = window.location.pathname != '/upvoted' &&
+                       window.location.pathname != '/favorites' &&
+                       window.location.search.match(/id=(\w+)/);
+        if (id_match) {
+          var user_id = id_match[1];
           if (user_id == user_name)
             user_id = 'Your';
           else
