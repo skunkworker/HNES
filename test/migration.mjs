@@ -22,7 +22,9 @@ const SHOTS = pjoin(ROOT, 'test', 'screenshots');
 
 
 const SRC = ROOT;
-const WORK = pjoin(ROOT, 'test', '.migtest');
+// Outside the repo, not test/.migtest: the copy has to bump the manifest version
+// between two launches, and cpSync refuses a destination inside its own source.
+const WORK = pjoin(mkdtempSync(join(tmpdir(), 'hnes-work-')), 'HNES');
 const PROFILE = mkdtempSync(join(tmpdir(), 'hnes-mig-'));
 
 rmSync(WORK, { recursive: true, force: true });

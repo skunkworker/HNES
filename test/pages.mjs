@@ -63,8 +63,8 @@ for (const [name, url] of PAGES) {
     pending: document.documentElement.classList.contains('hnes-pending'),
     visibility: getComputedStyle(document.body).visibility,
     // Did HNES actually restyle, or is this raw HN? #hnmain is HN's; the
-    // controls only exist if initModeControls got that far.
-    controls: document.querySelectorAll('.hnes-nav-toggle').length,
+    // settings gear only exists if initSettings got that far.
+    controls: document.querySelectorAll('.hnes-settings-host').length,
     bodyFont: getComputedStyle(document.body).fontFamily.slice(0, 22),
     rows: document.querySelectorAll('tr.athing').length,
     overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,

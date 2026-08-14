@@ -24,6 +24,7 @@ it correct. Verified against live `news.ycombinator.com` markup on 2026-07-31.
 | Phase 3 — hygiene | Not started |
 | Design tracks | Proposals only |
 | Palette as a user option | **Implemented** — [`palettes.md`](./palettes.md) |
+| Controls out of the nav | **Implemented** — [`settings-panel.md`](./settings-panel.md) |
 | Tests | **Added** — see [`../test/README.md`](../test/README.md) |
 
 The verification below is no longer a list to work through by hand; most of it runs.
@@ -230,7 +231,8 @@ product decision, not a styling one.
 ### Track B′ — all four shipped as a user option *(implemented)*
 
 Rather than picking one, all four ship behind a third runtime axis, `data-hnes-palette`,
-alongside the theme and density toggles. `classic` is the default and the unset state, so
+alongside the theme and view axes, all three now behind the settings gear
+([`settings-panel.md`](./settings-panel.md)). `classic` is the default and the unset state, so
 nothing changes for anyone who ignores the control.
 
 The colour block is split into eleven seeds per palette and a `color-mix()` derived layer

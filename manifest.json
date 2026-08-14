@@ -22,7 +22,7 @@
     "content_scripts": [
       { "run_at": "document_start",
         "css": [ "style.css" ],
-        "js": [ "js/boot.js" ],
+        "js": [ "js/modes.js", "js/boot.js" ],
         "matches": [
           "https://news.ycombinator.com/*",
           "https://hackerne.ws/*"]

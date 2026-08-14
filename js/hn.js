@@ -135,7 +135,15 @@ var CommentTracker = {
     HN.getLocalStorage(page_info.id, function(response) {
       var data = response.data;
       var prev_last_id = CommentTracker.process(data, page_info);
-      CommentTracker.highlightNewComments(prev_last_id);
+      // The read position is recorded either way: it is what hckrnews.com's
+      // unread counts are drawn from, and it is what makes turning the
+      // highlighting back on later resume from the right place rather than
+      // from whenever it was re-enabled. Only the marking is optional.
+      HNESModes.ready(function() {
+        if (HNESModes.on('hnesNewComments')) {
+          CommentTracker.highlightNewComments(prev_last_id);
+        }
+      });
     });
   },
 
@@ -918,167 +926,326 @@ var HN = {
      * dropping it here is what reveals the finished rewrite. The stylesheet also
      * reveals the page on a timer, so a throw before this point costs the user some
      * styling rather than a blank Hacker News.
+     *
+     * Held behind the settings read because rewriteNavigation is: the header is
+     * built from a stored list of sections, and revealing first would show the
+     * default tabs and then swap them. In practice this waits for nothing —
+     * boot.js issued the read at document_start and it has landed by now — and
+     * HNESModes.load resolves even when storage throws, so a reveal cannot be
+     * lost to it. Queued after rewriteNavigation's callback, which is what puts
+     * the nav on screen before the page is.
      */
     reveal: function() {
-      document.documentElement.classList.remove('hnes-pending');
+      HNESModes.ready(function() {
+        document.documentElement.classList.remove('hnes-pending');
+      });
     },
 
     /*
-     * The nav's preference controls. Each descriptor is the whole definition of
-     * one control: values[0] is the unset state and clears the attribute, so
-     * "which values are real" is derived from the list rather than restated as a
-     * condition somewhere else. Adding a mode is one entry in `values` plus the
-     * matching CSS block — and the same list in boot.js, which runs first and so
-     * cannot read this one.
+     * The Bootstrap Icons "gear-fill" glyph (MIT). Inline rather than a file so
+     * it takes currentColor and rides the header link's own colour and hover
+     * states. Solid rather than a stroked outline: at 15px on a saturated
+     * ground, hairline strokes go muddy where a filled silhouette stays crisp.
      *
-     * `ui` names an entry in MODE_UI, so a third kind of control is a builder
-     * plus a data change rather than another branch. It picks the control, not
-     * the behaviour: every rendering writes the same attribute and storage key
-     * through commitMode. Cycling is right up to three values and stops being
-     * right past that, which is why palette is a menu — five values is four
-     * clicks to reach the last one.
-     *
-     * theme:   auto -> light -> dark. 'auto' lets prefers-color-scheme decide;
-     *          the explicit modes pin color-scheme, which is what the
-     *          stylesheet's light-dark() tokens resolve against.
-     * view:    comfortable -> compact -> flow. compact shrinks the scale, flow
-     *          drops the card chrome and keeps the type readable.
-     * palette: swaps the stylesheet's colour seeds. Orthogonal to the other two
-     *          by construction — palettes own colour tokens, view owns geometry
-     *          tokens, and the sets do not intersect.
+     * fill-rule="evenodd" is what punches the centre out. The inner circle is a
+     * second subpath, and under the default nonzero rule its winding direction
+     * decides whether it is a hole or a disc — evenodd makes that not matter.
      */
-    MODES: [
-      { key: 'hnesTheme',   attr: 'data-hnes-theme',   label: 'theme', ui: 'cycle',
-        title: 'Switch colour theme',
-        values: ['auto', 'light', 'dark'] },
-      { key: 'hnesDensity', attr: 'data-hnes-density', label: 'view', ui: 'cycle',
-        title: 'Switch row density',
-        values: ['comfortable', 'compact', 'flow'] },
-      { key: 'hnesPalette', attr: 'data-hnes-palette', label: 'palette', ui: 'menu',
-        title: 'Switch colour palette',
-        values: ['classic', 'newsprint', 'ember', 'slate', 'letterpress'] }
-    ],
-
-    applyMode: function(spec, value) {
-      var root = document.documentElement;
-      if (spec.values.indexOf(value) > 0) root.setAttribute(spec.attr, value);
-      else root.removeAttribute(spec.attr);
-    },
-
-    /* The one write path for every control, so a new `ui` cannot forget half of
-       it: paint, then persist. */
-    commitMode: function(spec, value) {
-      HN.applyMode(spec, value);
-      HN.setLocalStorage(spec.key, value);
-    },
+    GEAR_SVG: '<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd" aria-hidden="true" focusable="false"><path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"></path></svg>',
 
     /*
-     * boot.js already applied every stored value before first paint, so the only
-     * job on load is building the controls.
+     * The settings panel: one gear at the end of the nav, one panel behind it,
+     * every mode in HNESModes drawn into it.
      *
-     * The values come from boot.js's read rather than a second one. Beyond
-     * saving the round trip, it is what keeps the controls out of the reveal:
-     * initModeControls is called immediately before HN.reveal(), so a fresh
-     * storage read would land after the page is visible and the nav would
-     * visibly grow. boot.js's promise is already settled by document_end, so
-     * .then runs in this task's microtask checkpoint — before the first paint.
+     * This used to be three controls sitting in the nav — a cycle each for theme
+     * and view, a menu for palette. The shapes differed because nav width decided
+     * them and not because the settings differ, and neither shape had room to say
+     * what `flow` or `newsprint` actually do. Behind a gear there is room, and the
+     * nav is back to its own links plus an icon.
      *
-     * The fallback covers hn.js running somewhere boot.js does not; today the
-     * manifest injects boot.js on the HN hosts only, and initModeControls is
-     * reached on those alone, but the guard costs one line.
+     * The panel body is built on first open rather than at init. That is what lets
+     * it read its selection off <html> instead of storage: boot.js's read has
+     * certainly landed by the time someone clicks, so there is no second round
+     * trip and no promise to thread from document_start to here.
+     *
+     * Recomputing the marks rather than tracking them is what makes a change
+     * from another tab show up correctly here: there is no second copy of the
+     * state to go stale. Every open recomputes, and so does the subscription
+     * below, which covers a panel already on screen when the other tab writes.
      */
-    initModeControls: function() {
-      var nav = $('#top-navigation .nav-links').first();
-      if (!nav.length) return;
+    initSettings: function() {
+      /*
+       * The header's third cell — the login link when logged out, the user menu
+       * and karma when logged in — so the gear sits at the right edge rather
+       * than in among the section tabs, which are navigation and not settings.
+       * That cell is right-aligned by the stylesheet, so appending puts the gear
+       * last. Falling back to the cell itself covers a page where HN ships no
+       * .pagetop in it.
+       */
+      var cell = $('#header td:nth-child(3)').first(),
+          slot = cell.find('.pagetop').first();
+      if (!slot.length) slot = cell;
+      if (!slot.length) return;
 
-      var stored = window.hnesModes || new Promise(function(resolve) {
-        chrome.storage.local.get(HN.MODES.map(function(spec) { return spec.key; }), resolve);
+      var link = $('<a/>').attr('href', 'javascript:void(0)')
+                          .addClass('hnes-gear')
+                          .attr('title', 'Display settings')
+                          .attr('aria-label', 'Display settings')
+                          .attr('aria-expanded', 'false')
+                          .html(HN.GEAR_SVG),
+          host = $('<span/>').addClass('hnes-settings-host').append(link),
+          panel = null,
+          // Tracked rather than read back off the DOM: jQuery's :visible measures
+          // the element, which forces a synchronous layout of the whole document —
+          // expensive on a long thread, and for a fact we already know. Same
+          // reason display is set directly rather than through .toggle(), which
+          // resolves the default display by appending a probe element to <body>.
+          open  = false,
+          close = function() {
+            if (!open) return;
+            open = false;
+            panel.css('display', 'none');
+            link.removeClass('active').attr('aria-expanded', 'false');
+            // Unbound with the panel: a document keydown handler otherwise sits
+            // in front of every keystroke in a comment box for a panel that is
+            // shut. Namespaced, so nothing else on the document is disturbed.
+            $(document).off('.hnesSettings');
+          };
+
+      link.click(function(e) {
+        e.stopPropagation();
+        if (open) return close();
+
+        // Any other open menu closes first; two floating surfaces at once reads
+        // as a rendering bug rather than as two menus. Their triggers have to
+        // lose .active with them — the older menus toggle that class blindly, so
+        // leaving it set desyncs their next click from what is on screen.
+        $('.nav-drop-down').not(panel).hide();
+        $('.more-arrow > a.active').removeClass('active');
+
+        if (!panel) host.append(panel = HN.buildSettingsPanel());
+        open = true;
+        HN.markSettings(panel);
+        panel.css('display', 'block');
+        link.addClass('active').attr('aria-expanded', 'true');
+
+        // Click-away and Esc. The stopPropagation above is what makes binding
+        // here safe as well as necessary: without it this very click would carry
+        // on to the document and shut the panel again.
+        $(document).on('click.hnesSettings', close)
+                   .on('keydown.hnesSettings', function(e) {
+                     if (e.key === 'Escape') close();
+                   });
       });
 
-      stored.then(function(items) {
-        HN.MODES.forEach(function(spec) {
-          // The starting selection, by index — values[0] is the fallback for
-          // anything unset or unrecognised.
-          var i = Math.max(spec.values.indexOf(items[spec.key]), 0),
-              build = HN.MODE_UI[spec.ui];
-
-          // Appended already built, so a control never appears unlabelled and inert.
-          nav.append(build(spec, i));
-        });
-      });
-    },
-
-    /* `i` is genuinely state here — each click reads it, advances it and writes
-       it back. The menu below only needs it as a starting selection. */
-    buildModeCycle: function(spec, i) {
-      var link = $('<a/>').attr('href', 'javascript:void(0)').attr('title', spec.title),
-          wrap = $('<span/>').addClass('hnes-nav-toggle').text('|').append(link);
-
-      link.text(spec.label + ': ' + spec.values[i]);
-      link.click(function() {
-        i = (i + 1) % spec.values.length;
-        link.text(spec.label + ': ' + spec.values[i]);
-        HN.commitMode(spec, spec.values[i]);
+      // A panel left open while another tab changes something: boot.js has
+      // already restyled the page underneath it, so without this its marks say
+      // one thing and the page says another.
+      HNESModes.subscribe(function() {
+        if (open) HN.markSettings(panel);
       });
 
-      return wrap;
+      // The `h` binding's way in. Guarded rather than a bare trigger, because
+      // clicking the gear while it is open closes it — which would make the key
+      // a toggle that fights whatever put the panel on screen.
+      HN.openSettings = function() { if (!open) link.trigger('click'); };
+
+      slot.append(host);
     },
 
     /*
      * Reuses .nav-drop-down, the surface the user and "more" menus already use,
-     * so the palette list inherits their placement, elevation and hover states
-     * rather than growing a second menu style.
+     * so the panel inherits their placement and elevation rather than growing a
+     * second menu style. .hnes-settings then overrides the row styling, which is
+     * the only part a list of options does differently from a list of links.
      */
-    buildModeMenu: function(spec, i) {
-      var link = $('<a/>').attr('href', 'javascript:void(0)').attr('title', spec.title),
-          menu = $('<div/>').addClass('nav-drop-down'),
-          wrap = $('<span/>').addClass('hnes-nav-toggle hnes-nav-menu more-arrow')
-                             .text('|').append(link).append(menu),
-          open = false,
-          close = function() { open = false; menu.hide(); link.removeClass('active'); };
+    buildSettingsPanel: function() {
+      var panel = $('<div/>').addClass('nav-drop-down hnes-settings');
 
-      link.text(spec.label + ': ' + spec.values[i]);
+      // Stopped once, at the panel, rather than per option: the click-away
+      // handler is on the document, so without this a click on a group heading
+      // or on the panel's own padding would close it. Picking an option still
+      // reaches this on the way up, which is what keeps the panel open to pick
+      // again.
+      panel.click(function(e) { e.stopPropagation(); });
 
-      spec.values.forEach(function(value, index) {
-        var option = $('<a/>').attr('href', 'javascript:void(0)').text(value);
-        if (index === i) option.addClass('nav-active-link');
+      // Consecutive specs sharing a label share one heading, which is what puts
+      // two switches under a single "Reading" instead of a heading each.
+      var group = null, heading = null;
+      HNESModes.list.forEach(function(spec) {
+        if (spec.label !== heading) {
+          heading = spec.label;
+          group = $('<div/>').addClass('hnes-settings-group')
+                             .append($('<div/>').addClass('hnes-settings-label')
+                                                .text(spec.label));
+          panel.append(group);
+        }
+        group.append(HN.buildSettingsRows(spec, panel));
+      });
 
-        option.click(function(e) {
-          e.stopPropagation();
-          menu.find('a').removeClass('nav-active-link');
-          option.addClass('nav-active-link');
-          link.text(spec.label + ': ' + value);
-          HN.commitMode(spec, value);
-          close();
+      panel.append(HN.buildStorageGroup());
+      return panel;
+    },
+
+    buildSettingsRows: function(spec, panel) {
+      var opts = $('<div/>').addClass('hnes-settings-opts');
+
+      // A swatch group's rows *are* the swatches — see the note in style.css.
+      if (spec.ui === 'swatch') opts.addClass('hnes-settings-swatches');
+
+      // A switch is one row for the whole spec: the state is the switch, so
+      // drawing values[0] and values[1] as two rows would say it twice.
+      if (spec.ui === 'toggle') {
+        opts.append(HN.buildSettingsOpt(spec, spec.values[0], panel));
+        if (spec.help) opts.append(HN.buildKeyHelp(spec.help));
+        return opts;
+      }
+
+      // Above the rows, inside the same box: a set needs a line saying what
+      // being in it means, which a list of named choices does not.
+      if (spec.hint) opts.append($('<div/>').addClass('hnes-settings-note').text(spec.hint));
+      spec.values.forEach(function(value) {
+        opts.append(HN.buildSettingsOpt(spec, value, panel));
+      });
+      return opts;
+    },
+
+    buildSettingsOpt: function(spec, value, panel) {
+      var toggle = spec.ui === 'toggle',
+          row = $('<a/>').attr('href', 'javascript:void(0)')
+                         .addClass('hnes-settings-opt')
+                         .attr('data-hnes-opt', spec.key + ':' + value.id),
+          text = $('<span/>').addClass('hnes-settings-text')
+                             .append($('<span/>').addClass('hnes-settings-name')
+                                                 .text(toggle ? spec.name : value.label)),
+          hint = toggle ? spec.hint : value.hint;
+
+      // The row carries the palette, so it paints itself in that palette's own
+      // ground, ink and accent. It cannot drift from what picking it does,
+      // because it is the same stylesheet rule doing both.
+      if (spec.ui === 'swatch') {
+        row.attr('data-hnes-palette', value.id)
+           .append($('<i/>').addClass('hnes-swatch-bar'));
+      }
+      // Fourteen sections with a line of prose each would be the whole panel.
+      // They carry it as a tooltip instead — which is where that text already
+      // lives, on the nav links these rows decide the placement of.
+      if (hint && spec.ui === 'multi') row.attr('title', hint);
+      else if (hint) text.append($('<span/>').addClass('hnes-settings-hint').text(hint));
+      row.append(text);
+      // The switch is an <i> with no text, so on its own it is invisible to a
+      // screen reader — the row would read as its label and say nothing about
+      // which way it is set. markSettings keeps aria-checked in step.
+      if (toggle) row.addClass('hnes-settings-switchrow')
+                     .attr('role', 'switch')
+                     .append($('<i/>').addClass('hnes-settings-switch'));
+
+      row.click(function() {
+        HNESModes.commit(spec, HN.nextSetting(spec, value));
+        HN.markSettings(panel);
+      });
+
+      return row;
+    },
+
+    /*
+     * What clicking a row means, which is the only thing that differs between
+     * the `ui` kinds: a list picks, a switch flips, a set adds or removes.
+     */
+    nextSetting: function(spec, value) {
+      if (spec.ui === 'toggle') {
+        return HNESModes.current(spec) === spec.values[0].id
+          ? spec.values[1].id : spec.values[0].id;
+      }
+      if (spec.ui === 'multi') {
+        var selected = HNESModes.selected(spec),
+            at = selected.indexOf(value.id);
+        if (at >= 0) selected.splice(at, 1);
+        else selected.push(value.id);
+        return selected.join(',');
+      }
+      return value.id;
+    },
+
+    /*
+     * The keyboard bindings, listed rather than settable. Rebinding is a real
+     * feature with a real cost — capture, conflict checking, a reset — and the
+     * thing actually missing was that they were nowhere written down.
+     */
+    buildKeyHelp: function(keys) {
+      var list = $('<div/>').addClass('hnes-keys');
+      keys.forEach(function(key) {
+        list.append($('<kbd/>').text(key.id))
+            .append($('<span/>').text(key.label));
+      });
+      return list;
+    },
+
+    /*
+     * Not a setting — the one place in the extension that can say how much it
+     * is holding, and empty the one store that never shrinks. Comment collapse
+     * state is written per comment and carries no expire stamp, so the sweep in
+     * background.js steps over it and it has grown for the life of the
+     * extension with no way to see it, let alone clear it.
+     */
+    buildStorageGroup: function() {
+      var group = $('<div/>').addClass('hnes-settings-group')
+                             .append($('<div/>').addClass('hnes-settings-label').text('Storage')),
+          note = $('<div/>').addClass('hnes-settings-note'),
+          row = $('<a/>').attr('href', 'javascript:void(0)')
+                         .addClass('hnes-settings-opt hnes-settings-action')
+                         .append($('<span/>').addClass('hnes-settings-text')
+                           .append($('<span/>').addClass('hnes-settings-name')
+                                               .text('Clear collapsed comments'))
+                           .append($('<span/>').addClass('hnes-settings-hint')
+                                               .text('Threads already open keep their state until reloaded')));
+
+      // getBytesInUse rather than reading the store: this runs on every open,
+      // and the store it is measuring is the one that gets large.
+      chrome.storage.local.getBytesInUse(null, function(bytes) {
+        note.text(HN.formatBytes(bytes) + ' stored');
+      });
+
+      row.click(function() {
+        chrome.storage.local.get(null, function(all) {
+          var keys = Object.keys(all).filter(function(key) {
+            var value = all[key];
+            return value && typeof value === 'object' && 'isCollapsed' in value;
+          });
+          chrome.storage.local.remove(keys, function() {
+            chrome.storage.local.getBytesInUse(null, function(bytes) {
+              note.text(keys.length + ' cleared — ' + HN.formatBytes(bytes) + ' left');
+            });
+          });
         });
-
-        menu.append(option);
       });
 
-      link.click(function(e) {
-        e.stopPropagation();
-        // Any other open menu closes first; two floating surfaces at once read
-        // as a rendering bug rather than as two menus. Their triggers have to
-        // lose .active with them — the older menus toggle that class blindly, so
-        // leaving it set desyncs their next click from what is on screen.
-        $('.nav-drop-down').not(menu).hide();
-        $('.more-arrow > a.active').not(link).removeClass('active');
-        // Tracked rather than read back off the DOM: jQuery's :visible measures
-        // the element, which forces a synchronous layout of the whole document —
-        // expensive on a long thread, and for a fact we already know.
-        open = !open;
-        menu.toggle(open);
-        link.toggleClass('active', open);
+      return group.append(note).append($('<div/>').addClass('hnes-settings-opts').append(row));
+    },
+
+    formatBytes: function(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    },
+
+    /* Recomputed on every open rather than tracked, so the panel is right after
+       a change made in another tab as well as one made in this one. */
+    markSettings: function(panel) {
+      panel.find('.hnes-settings-opt').removeClass('hnes-settings-on');
+      HNESModes.list.forEach(function(spec) {
+        // A switch that is off has no row to mark: its row is values[0], the
+        // on state, so absence of the mark is what draws it off.
+        var ids = spec.ui === 'multi' ? HNESModes.selected(spec)
+                                      : [HNESModes.current(spec)];
+        ids.forEach(function(id) {
+          panel.find('[data-hnes-opt="' + spec.key + ':' + id + '"]')
+               .addClass('hnes-settings-on');
+        });
       });
-
-      // Click-away, which the older menus never got. The trigger's
-      // stopPropagation is the load-bearing one — without it, opening the menu
-      // would immediately close it again. The options' call is belt-and-braces:
-      // they close explicitly, so bubbling here would be harmless. Namespaced so
-      // it can be unbound without disturbing other document click handlers.
-      $(document).on('click.hnesMode', close);
-
-      return wrap;
+      panel.find('.hnes-settings-switchrow').each(function() {
+        $(this).attr('aria-checked', $(this).hasClass('hnes-settings-on'));
+      });
     },
 
     /*
@@ -1805,9 +1972,14 @@ var HN = {
             user_id = user_id + "'s";
           new_active.text(user_id + " " + new_active.text());
         }
-        $('#top-navigation .nav-links').append($('<span/>')
-                                       .text('|')
-                                       .append(new_active));
+        // Queued rather than appended: the tab strip this reaches into is built
+        // from a stored setting now, so it may not exist yet. ready() fires in
+        // order, and rewriteNavigation queued first.
+        HNESModes.ready(function() {
+          $('#top-navigation .nav-links').append($('<span/>')
+                                         .text('|')
+                                         .append(new_active));
+        });
       }
 
       hidden_div.append(
@@ -1825,30 +1997,32 @@ var HN = {
       hidden_div.hide();
       HN.setTopColor();
     },
+    /*
+     * Which sections are header tabs and which sit under "more" is a stored
+     * preference now, so the header cannot be built until the read lands.
+     * reveal() waits on the same queue and was queued after this, so the page is
+     * never shown wearing the default tabs and then corrected.
+     */
     rewriteNavigation: function() {
+      HNESModes.ready(function() {
+        var chosen = HNESModes.selected(HNESModes.spec('hnesNav')),
+            visible_pages = [],
+            hidden_pages = [];
+
+        // Split in HNESModes.sections order rather than in the order they were
+        // picked, so moving one section across never reorders the others.
+        HNESModes.sections.forEach(function(section) {
+          (chosen.indexOf(section.id) >= 0 ? visible_pages : hidden_pages).push(section);
+        });
+
+        HN.paintNavigation(visible_pages, hidden_pages);
+      });
+    },
+
+    paintNavigation: function(visible_pages, hidden_pages) {
         var topsel = $('.topsel');
-        var more_nav = $('<div/>').attr('id', 'morenav')
-                                  .addClass('topsel');
         var navigation = $('td:nth-child(2) .pagetop');
         navigation.attr('id', 'top-navigation');
-
-        var visible_pages = [ ['top', '/news', 'Top stories'],
-                              ['new', '/newest', 'Newest stories'],
-                              ['best', '/best', 'Best stories'],
-                              ['submit', '/submit', 'Submit a story'],
-                            ];
-
-        var hidden_pages = [ ['show', '/show', 'Show HN'],
-                             ['shownew', '/shownew', 'New Show HN posts'],
-                             ['classic', '/classic', 'Only count votes from accounts older than one year'],
-                             ['active', '/active', 'Active stories'],
-                             ['ask', '/ask', 'Ask Hacker News'],
-                             ['jobs', '/jobs', 'Sponsored job postings'],
-                             ['bestcomments', '/bestcomments', 'Best comments'],
-                             ['newcomments', '/newcomments', 'New comments'],
-                             ['noobstories', '/noobstories', 'Stories by new users'],
-                             ['noobcomments', '/noobcomments', 'Comments by new users']
-                           ];
 
         if (topsel.length == 0) {
           topsel = $('<span/>').addClass('nav-links');
@@ -1858,21 +2032,18 @@ var HN = {
           topsel.removeClass('topsel').addClass('nav-links');
           topsel.empty();
         }
-        for (var i in visible_pages) {
-          var link_text = visible_pages[i][0];
-          var link_href = visible_pages[i][1];
-
+        visible_pages.forEach(function(section) {
           var span = $('<span/>').text('|');
-          var new_link = $('<a/>').attr('href', link_href)
-                                  .text(link_text)
-                                  .addClass(link_text)
-                                  .attr('title', visible_pages[i][2]);
+          var new_link = $('<a/>').attr('href', section.href)
+                                  .text(section.label)
+                                  .addClass(section.label)
+                                  .attr('title', section.hint);
 
-          if (window.location.pathname == link_href)
+          if (window.location.pathname == section.href)
             new_link.addClass('nav-active-link')
 
           topsel.append(span.prepend(new_link));
-        }
+        });
         if (window.location.pathname == '/')
           $('.top').addClass('nav-active-link');
 
@@ -1886,23 +2057,23 @@ var HN = {
                                     .addClass('nav-drop-down');
 
         var new_active = false;
-        for (var i in hidden_pages) {
-          var link_text = hidden_pages[i][0];
-          var link_href = hidden_pages[i][1];
+        hidden_pages.forEach(function(section) {
+          var new_link = $('<a/>').attr('href', section.href)
+                                  .attr('title', section.hint)
+                                  .text(section.label)
+                                  .addClass(section.label);
 
-          var new_link = $('<a/>').attr('href', link_href)
-                                  .attr('title', hidden_pages[i][2])
-                                  .text(link_text)
-                                  .addClass(link_text);
-
-          if (window.location.pathname == link_href)
+          if (window.location.pathname == section.href)
             new_active = new_link.clone().addClass('nav-active-link')
                                          .addClass('new-active-link');
 
           hidden_div.append(new_link);
-        }
+        });
 
-        topsel.append(more_link).append(hidden_div);
+        // Nothing left over means no menu to open: promoting every section is a
+        // reachable choice now, and a "more" with an empty drawer under it is
+        // the kind of dead affordance the panel exists to avoid.
+        if (hidden_pages.length) topsel.append(more_link).append(hidden_div);
 
         if (new_active)
           topsel.append($('<span/>').text('|').append(new_active));
@@ -1916,8 +2087,10 @@ var HN = {
         more_link.click(toggle_more_link);
         hidden_div.click(toggle_more_link);
 
-        hidden_div.offset({'left': more_link.position().left});
-        hidden_div.hide();
+        if (hidden_pages.length) {
+          hidden_div.offset({'left': more_link.position().left});
+          hidden_div.hide();
+        }
     },
 
     toggleMoreNavLinks: function(e) {
@@ -1944,21 +2117,23 @@ var HN = {
       var text = "Search on " + domain;
       $("input[name='q']").val(text);
       el.focus(function(){
-        HN.searchInputFocused = true;
         if (el.val() == text) {
           el.val("");
         }
       });
       el.blur(function(){
-        HN.searchInputFocused = false;
         if (el.val() == "") {
           el.val(text);
         }
       });
     },
 
-    searchInputFocused: false,
-
+    /*
+     * The settings are read inside the handler rather than gating the binding,
+     * so turning shortcuts off in one tab is honoured by every open tab at the
+     * next keystroke rather than at its next load. It costs a cached lookup per
+     * keydown, on a handler that already runs on every keydown.
+     */
     init_keys: function(){
         var j = 74, // Next Item
             k = 75, // Previous Item
@@ -1970,26 +2145,33 @@ var HN = {
             b = 66, // Open comments and link in new tab
             shiftKey = 16; // allow modifier
         $(document).keydown(function(e){
-          //Keyboard shortcuts disabled when search focused
-          if (!HN.searchInputFocused && !e.ctrlKey) {
-            if (e.which == j) {
-              HN.next_story();
-            } else if (e.which == k) {
-              HN.previous_story();
-            } else if (e.which == l) {
-              HN.open_story_in_new_tab();
-            } else if (e.which == o) {
-              HN.open_story_in_current_tab();
-            } else if (e.which == p) {
-              HN.open_comments_in_current_tab();
-            } else if (e.which == c) {
-              HN.open_comments_in_new_tab();
-            } else if (e.which == h) {
-              //HN.open_help();
-            } else if (e.which == b) {
-              HN.open_comments_in_new_tab();
-              HN.open_story_in_new_tab();
-            }
+          // Typing is not navigation. This used to check one flag set by the
+          // search box's own focus handler, which left every comment box and
+          // the submit form unguarded — `j` mid-reply scrolled the page out
+          // from under it. Asking the focused element covers all of them, and
+          // covers boxes HN adds later without being told about them.
+          var el = e.target;
+          if (el && (el.isContentEditable ||
+                     /^(?:INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+          if (e.ctrlKey || !HNESModes.on('hnesKeys')) return;
+
+          if (e.which == j) {
+            HN.next_story();
+          } else if (e.which == k) {
+            HN.previous_story();
+          } else if (e.which == l) {
+            HN.open_story_in_new_tab();
+          } else if (e.which == o) {
+            HN.open_story_in_current_tab();
+          } else if (e.which == p) {
+            HN.open_comments_in_current_tab();
+          } else if (e.which == h) {
+            // The help this key was bound to was never written; the panel lists
+            // these bindings, so it is the screen the binding always meant.
+            if (HN.openSettings) HN.openSettings();
+          } else if (e.which == b) {
+            HN.open_comments_in_new_tab();
+            HN.open_story_in_new_tab();
           }
         })
     },
@@ -2088,31 +2270,28 @@ var HN = {
     }
 }
 
-/* Keyed by a descriptor's `ui`, so a third kind of control is an entry here and
-   a value there rather than another branch in initModeControls. Out here rather
-   than inside the literal above because the builders it points at are members of
-   that literal, and HN is not bound until it closes. */
-HN.MODE_UI = {
-  cycle: HN.buildModeCycle,
-  menu:  HN.buildModeMenu
-};
-
-
 //show new comment count on hckrnews.com
 if (window.location.host == "hckrnews.com") {
-  $('ul.entries li').each(function() {
-    HN.getLocalStorage($(this).attr('id'), function(response) {
-      if (response.data != undefined) {
-        var data = JSON.parse(response.data);
-        var id = data.id;
-        var num = data.num ? data.num : 0;
-        var now = Number($('#'+id).find('.comments').text());
-        var unread = Math.max(now - num, 0);
-        var prepend = unread == 0 ? "" + unread + " / " : "<span>"+unread+"</span> / ";
-        $(document).ready(function() {
-          $('#'+id).find('.comments').prepend(prepend);
-        });
-      }
+  // Gated on the setting because this is the one place HNES touches a host
+  // other than Hacker News, and until the panel existed there was no way to
+  // find that out, let alone stop it. The read is skipped, not just the
+  // rendering — the point of switching it off is the reads.
+  HNESModes.ready(function() {
+    if (!HNESModes.on('hnesHckrnews')) return;
+    $('ul.entries li').each(function() {
+      HN.getLocalStorage($(this).attr('id'), function(response) {
+        if (response.data != undefined) {
+          var data = JSON.parse(response.data);
+          var id = data.id;
+          var num = data.num ? data.num : 0;
+          var now = Number($('#'+id).find('.comments').text());
+          var unread = Math.max(now - num, 0);
+          var prepend = unread == 0 ? "" + unread + " / " : "<span>"+unread+"</span> / ";
+          $(document).ready(function() {
+            $('#'+id).find('.comments').prepend(prepend);
+          });
+        }
+      });
     });
   });
 }
@@ -2147,7 +2326,7 @@ else {
       });
     }
 
-    HN.initModeControls();
+    HN.initSettings();
     HN.reveal();
   });
 }

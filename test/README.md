@@ -9,7 +9,7 @@ cd test && npm install        # playwright only
 npm run migration             # the one that cannot be redone
 npm run tokens                # colour tokens, contrast, fade ladder
 npm run degenerate            # broken markup must not brick the page
-npm run controls              # nav controls, persistence, orthogonality
+npm run controls              # settings panel, persistence, cross-tab, orthogonality
 npm run pages                 # every page type, logged out
 ```
 
@@ -77,12 +77,38 @@ This is a real regression test, not a smoke test: removing the guard in
 `doLogin` makes exactly the two `/login` cases fail with the original
 `TypeError`, and restoring it makes all eight pass.
 
-## controls.mjs — the nav controls end to end
+## controls.mjs — the settings panel end to end
 
-Builds the controls, opens the palette menu, picks one, and checks the attribute
-is written, the label updates, the menu closes and the choice persists across a
-reload with the attribute set *before* the reveal. Also checks palette and
-density do not disturb each other.
+Opens the gear, picks options out of the panel, and checks the attribute is
+written, the mark moves, the panel closes on click-away and Escape, and the
+choice persists across a reload with the attribute set *before* the reveal. Also
+checks palette and view do not disturb each other. 33 checks, exits non-zero on
+any failure.
+
+Several exist because they are the ways this can break silently:
+
+- **the panel is lazy** — nothing is in the DOM until the gear is clicked, which
+  is what keeps the settings off the render critical path
+- **five swatches, five distinct grounds** — a swatch that inherited the page's
+  palette instead of carrying its own would still render, just identically five
+  times over
+- **a second tab follows without reloading**, and **an open panel follows
+  another tab** — the `storage.onChanged` path in `modes.js` and the
+  `subscribe` hook on top of it have no other coverage
+- **a chosen section is a header tab after a reload** — the settings that
+  change behaviour rather than paint write no attribute to look at, so the
+  assertion has to be what the next load builds
+- **typing is not navigation** — the keyboard guard, which for years was one
+  flag that only the search box set
+
+Note the click-away target is hunted with `elementFromPoint` rather than hard
+coded. There is no inert pixel down the left of an HNES front page — the comment
+count and score are gutter columns and both are links — and clicking one closes
+the panel by navigating, which passes a naive check for the wrong reason.
+
+A check can also report `skip`: Hacker News rate-limits a driven browser
+readily, and a 429 is neither a pass nor a failure but a page this run never got
+to look at. Console errors are filtered to script errors for the same reason.
 
 ## pages.mjs — every page type, logged out
 

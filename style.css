@@ -28,12 +28,24 @@
 * ---------------------------------------------------------------------------
 */
 
-:root {
-  color-scheme: light dark;
+/* =========================================================================
+   SEEDS — the palette surface. A palette block replaces exactly these.
 
-  /* =========================================================================
-     SEEDS — the palette surface. A palette block replaces exactly these.
-     ========================================================================= */
+   In their own rule, and matched on the attribute rather than on :root, so
+   that an *element* can carry a palette as well as the document can: the
+   settings panel draws each palette as a swatch, and the swatch for `classic`
+   has to be able to say "classic" rather than inherit whatever the page is
+   currently set to. [data-hnes-palette="classic"] weighs (0,1,0), the same as
+   the bare :root it replaces here, so the palette blocks further down still
+   win on source order alone.
+
+   Seeds only. The derived layer below stays on :root, because a custom
+   property's var()s are substituted at computed-value time — a swatch would
+   inherit root's already-resolved derivations, not its own. That is why the
+   swatch is drawn from bg, orange, fg and border and nothing else.
+   ========================================================================= */
+:root,
+[data-hnes-palette="classic"] {
 
   /*
    * Two oranges, deliberately. --hnes-brand paints large surfaces (header,
@@ -81,6 +93,10 @@
   /* Text selection: a wash of the accent over the page, but not on the
      accent-into-bg line either theme would predict, so it is stated. */
   --hnes-selection:     light-dark(#ffd9bf, #5a3410);
+}
+
+:root {
+  color-scheme: light dark;
 
   /* =========================================================================
      DERIVED — everything below is palette-independent and never restated by a
@@ -247,13 +263,13 @@
 
 }
 
-/* Manual override from the theme toggle; 'auto' removes the attribute entirely. */
+/* Manual override from the settings panel; 'auto' removes the attribute entirely. */
 :root[data-hnes-theme="light"] { color-scheme: only light; }
 :root[data-hnes-theme="dark"]  { color-scheme: only dark; }
 
 
 /* ---------------------------------------------------------------------------
-   Palettes, set by the palette control; 'classic' removes the attribute and
+   Palettes, set from the settings panel; 'classic' removes the attribute and
    falls back to the seeds above. Each block is seeds only — the derived layer
    picks the change up for free, which is the whole reason the split exists.
 
@@ -271,22 +287,26 @@
    reason — the header there is the bright accent, not a burnt one, so the ink
    on it has to invert.
 
-   :where() so these weigh (0,1,0) — the same as the bare :root they override,
-   since :root is itself a pseudo-class — winning on source order alone. Same
-   reason the density blocks use it, and what keeps the responsive steps at the
-   foot of the file working without knowing palettes exist.
+   A bare attribute selector weighs (0,1,0) — the same as the :root carrying the
+   seeds, since :root is itself a pseudo-class — so these win on source order
+   alone, which is what keeps the responsive steps at the foot of the file
+   working without knowing palettes exist. It also matches elements other than
+   the document, which is what lets the settings panel draw a live swatch of
+   each palette instead of a hardcoded copy of one.
 
    Contrast measured per palette per theme on the eight load-bearing pairs; all
    clear WCAG AA, most AAA, none below classic.
    --------------------------------------------------------------------------- */
 
-/* classic is the unset state — applyMode and boot.js only ever set the
-   attribute for values past the first — so the presence of the attribute is
-   exactly "some palette other than classic". Ahead of the blocks below, so a
-   future palette that wants its two oranges back can just say so. */
-:root:where([data-hnes-palette]) { --hnes-brand: var(--hnes-orange); }
+/* classic is the unset state on the document — HNESModes.apply only ever sets
+   the attribute for values past the first — so on <html> the presence of the
+   attribute is exactly "some palette other than classic". The swatches do state
+   it explicitly, hence the :not(): a classic swatch keeps classic's two oranges
+   rather than collapsing them. Ahead of the blocks below, so a future palette
+   that wants its two oranges back can just say so. */
+[data-hnes-palette]:not(:where([data-hnes-palette="classic"])) { --hnes-brand: var(--hnes-orange); }
 
-:root:where([data-hnes-palette="newsprint"]) {
+[data-hnes-palette="newsprint"] {
   --hnes-bg:            light-dark(#fdfdfc, #0d0d0c);
   --hnes-surface:       light-dark(#ffffff, #151513);
   --hnes-fg:            light-dark(#111110, #f3f2ec);
@@ -299,7 +319,7 @@
   --hnes-selection:     light-dark(#f7dfd6, #4f2d1c);
 }
 
-:root:where([data-hnes-palette="ember"]) {
+[data-hnes-palette="ember"] {
   --hnes-bg:            light-dark(#fbf6f1, #14100c);
   --hnes-surface:       light-dark(#fffcf9, #1e1712);
   --hnes-fg:            light-dark(#241a12, #f0e6dc);
@@ -312,7 +332,7 @@
   --hnes-selection:     light-dark(#efd8cc, #54341f);
 }
 
-:root:where([data-hnes-palette="slate"]) {
+[data-hnes-palette="slate"] {
   --hnes-bg:            light-dark(#f1f3f4, #0f1214);
   --hnes-surface:       light-dark(#ffffff, #181d20);
   --hnes-fg:            light-dark(#14181a, #e3e8ea);
@@ -325,7 +345,7 @@
   --hnes-selection:     light-dark(#e9d6ce, #513123);
 }
 
-:root:where([data-hnes-palette="letterpress"]) {
+[data-hnes-palette="letterpress"] {
   --hnes-bg:            light-dark(#fefaf9, #0f0b09);
   --hnes-surface:       light-dark(#ffffff, #1b1613);
   --hnes-fg:            light-dark(#19120f, #f0ece9);
@@ -340,7 +360,7 @@
 
 
 /* ---------------------------------------------------------------------------
-   View modes, set by the density toggle; 'comfortable' removes the attribute
+   View modes, set from the settings panel; 'comfortable' removes the attribute
    and falls back to the :root defaults.
 
    Two different levers, deliberately. `compact` shrinks the scale — smaller
@@ -560,9 +580,16 @@ html body #header a:visited { color: var(--hnes-header-ink); }
 html body #header a:hover { color: var(--hnes-orange-ink); }
 
 /* One pill shape for every header link — section tabs, the login link and the
-   theme toggle. The .nav-links rule below adds only what differs. */
+   settings gear. The .nav-links rule below adds only what differs.
+
+   The third-cell selector is a catch-all for that side of the header, where the
+   links are nested a level deeper than `.pagetop > a` reaches. It has to stop
+   at the dropdowns that hang off it, though: a menu row is a list item, not a
+   pill, and at (1,1,4) this rule otherwise out-specifies the .nav-drop-down
+   rules below and reshapes every row inside the user menu and the settings
+   panel. */
 html body #header .pagetop > a,
-html body #header td:nth-child(3) a,
+html body #header td:nth-child(3) a:not(.nav-drop-down a),
 html body .nav-links > span > a,
 html body .nav-links > span > a:link,
 html body .nav-links > span > a:visited {
@@ -573,7 +600,9 @@ html body .nav-links > span > a:visited {
   border-radius: var(--hnes-radius-pill);
   transition: background-color .12s ease, color .12s ease;
 }
-html body #header td:nth-child(3) a:hover { background: var(--hnes-header-hover); }
+html body #header td:nth-child(3) a:not(.nav-drop-down a):hover {
+  background: var(--hnes-header-hover);
+}
 
 /* news.css sets .pagetop{font-size:10pt} at the same specificity, so an
    unprefixed rule here silently loses. */
@@ -607,8 +636,11 @@ html body .more-arrow:hover > a {
   color: var(--hnes-orange-ink) !important;
   background: var(--hnes-header-hover);
 }
-/* The current section reads as a filled tab rather than just brighter text. */
+/* The current section reads as a filled tab rather than just brighter text, and
+   an open menu takes the same treatment — including the gear, which is a menu
+   trigger like the other two even though it wants no caret. */
 html body .nav-links > span > a.nav-active-link,
+html body .hnes-settings-host > a.active,
 html body .more-arrow > a.active {
   color: var(--hnes-brand) !important;
   background: var(--hnes-orange-ink);
@@ -673,28 +705,231 @@ html body .nav-drop-down a:hover {
   border-top: 1px solid var(--hnes-border);
 }
 
-/* A toggle is a direct child span of .nav-links, so the pill and font-size:0
-   rules above already cover it; only the cursor needs saying. */
-.hnes-nav-toggle > a { cursor: pointer; }
+/* ---------------------------------------------------------------------------
+   Settings panel
+
+   One gear at the right end of the header, one panel behind it. It lives in the
+   third cell beside the login link rather than among the section tabs, so the
+   pill rule above already shapes it; the icon is an inline SVG on currentColor,
+   so it takes the header ink and the hover state for free.
+
+   The panel owns its dropdown, unlike #user-hidden which pins itself to the
+   page edge — hence the positioned parent here and nowhere else. Right-aligned
+   so it opens leftward, the direction that cannot push it off the viewport and
+   reintroduce horizontal scroll.
+   --------------------------------------------------------------------------- */
+
+.hnes-settings-host { position: relative; }
+
+/* Two classes deep on purpose: the pill rule above reaches this anchor through
+   `#header td:nth-child(3) a`, which out-specifies anything shorter. The pill
+   pads for a 13.5px cap height, and a 15px square box wants less. */
+html body #header .hnes-settings-host > a.hnes-gear {
+  padding: 6px 10px;
+  line-height: 0;
+}
+.hnes-settings-host svg { vertical-align: middle; }
+
+.hnes-settings {
+  right: 0;
+  width: 268px;
+  padding: var(--hnes-gap-2);
+  /* Stated rather than inherited: the panel hangs off the header's third cell,
+     which is right-aligned, and HN's own nav spans zero their font-size to
+     collapse separator pipes. Both would reach in here otherwise. */
+  text-align: left;
+  font-size: var(--hnes-size-sm);
+  /* A short viewport must scroll the panel rather than the page: it hangs off
+     the header, so anything taller than the viewport is unreachable. */
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+}
+
+.hnes-settings-group + .hnes-settings-group {
+  margin-top: var(--hnes-gap-2);
+  padding-top: var(--hnes-gap-2);
+  border-top: 1px solid var(--hnes-border);
+}
+
+.hnes-settings-label {
+  font-size: var(--hnes-size-xs);
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--hnes-fg-muted);
+  padding: var(--hnes-gap-1) var(--hnes-gap-2);
+}
+
+/* Out-specifies `html body .nav-drop-down a`, which lays the older menus'
+   rows out as plain blocks and pins their colour with !important. */
+html body .hnes-settings a.hnes-settings-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--hnes-gap-2);
+  padding: 5px var(--hnes-gap-2);
+  white-space: normal;
+}
+/* Only the fill: the base rule's hover recolours to the accent, which on a row
+   whose job is to be read as a label is one signal too many. */
+html body .hnes-settings a.hnes-settings-opt:hover {
+  background: var(--hnes-surface-alt);
+}
+
+.hnes-settings-text { display: flex; flex-direction: column; min-width: 0; }
+.hnes-settings-name { line-height: 1.35; }
+.hnes-settings-hint {
+  font-size: var(--hnes-size-xs);
+  line-height: 1.35;
+  color: var(--hnes-fg-muted);
+}
 
 /*
- * The palette control owns its dropdown, unlike #user-hidden which pins itself
- * to the page edge — hence the positioned parent here and nowhere else.
- *
- * Right-aligned so the panel opens leftward, which is the direction that cannot
- * push it off the viewport and reintroduce horizontal scroll: a nav control is
- * never near the left edge, but this one is appended last and can sit close to
- * the right one.
+ * The check is reserved in both states so picking an option cannot reflow the
+ * row it is in. Weight plus the accent for the label, not a fill — a filled row
+ * sitting next to the hover fill reads as two hovers.
  */
-.hnes-nav-menu { position: relative; }
-.hnes-nav-menu > .nav-drop-down { right: 0; }
-
-/* The .nav-active-link rule above only matches direct children of .nav-links,
-   so the selected row inside the menu needs its own mark. Weight rather than a
-   fill: a filled row next to the hover fill reads as two hovers. */
-html body .hnes-nav-menu .nav-drop-down a.nav-active-link {
-  color: var(--hnes-orange) !important;
+html body .hnes-settings a.hnes-settings-opt::after {
+  content: '';
+  display: inline-block;
+  flex: none;
+  margin-left: auto;
+  width: 12px;
+  line-height: 1;
+  text-align: center;
+  color: var(--hnes-orange);
+}
+html body .hnes-settings a.hnes-settings-on::after { content: '\2713'; }
+html body .hnes-settings a.hnes-settings-on .hnes-settings-name {
   font-weight: 700;
+  color: var(--hnes-orange);
+}
+
+/*
+ * The palette rows *are* the swatches: each carries data-hnes-palette, so it
+ * paints itself in that palette's own ground, ink, rule and accent, straight
+ * out of that palette's block above. The row cannot drift from what picking it
+ * does, because one rule drives both.
+ *
+ * Butted together with no gap and no radius between them, which is the whole
+ * point. These five are all warm papers in light mode and their grounds sit
+ * within a few percent of each other; separated by white space and text that
+ * difference is invisible, and a small chip of it is invisible twice over. At a
+ * shared edge it is not — simultaneous contrast does the work no chip size can.
+ * That is also why the row shows ground and ink rather than a miniature of the
+ * page: amplifying the difference would make the swatch lie about the palette.
+ */
+.hnes-settings-swatches {
+  border: 1px solid var(--hnes-border);
+  border-radius: var(--hnes-radius);
+  overflow: hidden;
+}
+html body .hnes-settings-swatches a.hnes-settings-opt {
+  background: var(--hnes-bg);
+  color: var(--hnes-fg) !important;
+  border-radius: 0;
+  padding: 7px var(--hnes-gap-2) 7px 0;
+}
+/* The palette's own rule colour, so the seam between two rows is drawn by the
+   palette above it — one more token on show. */
+.hnes-settings-swatches a.hnes-settings-opt + a.hnes-settings-opt {
+  border-top: 1px solid var(--hnes-border);
+}
+/* Hover stays inside the palette: its card colour, not the panel's. */
+html body .hnes-settings-swatches a.hnes-settings-opt:hover {
+  background: var(--hnes-surface);
+}
+/* The accent, full height, so it reads as the header stripe it stands for. */
+.hnes-swatch-bar {
+  flex: none;
+  align-self: stretch;
+  width: 6px;
+  background: var(--hnes-orange);
+}
+
+/*
+ * A switch, for the settings that are on or off rather than one of several. The
+ * whole row is the hit target and the switch is only the readout — a 28px
+ * control would be the one thing in this panel you have to aim at. That is also
+ * why it suppresses the check: two affirmatives on one row is one too many, and
+ * the reserved 12px would push the switch off the right edge.
+ */
+.hnes-settings-switch {
+  flex: none;
+  margin-left: auto;
+  position: relative;
+  width: 28px;
+  height: 16px;
+  border-radius: var(--hnes-radius-pill);
+  background: var(--hnes-border);
+  transition: background .12s ease;
+}
+.hnes-settings-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--hnes-bg);
+  transition: transform .12s ease;
+}
+html body .hnes-settings a.hnes-settings-switchrow::after,
+html body .hnes-settings a.hnes-settings-action::after { content: none; }
+html body .hnes-settings a.hnes-settings-on .hnes-settings-switch {
+  background: var(--hnes-orange);
+}
+html body .hnes-settings a.hnes-settings-on .hnes-settings-switch::after {
+  transform: translateX(12px);
+}
+/* The switch says which way it is set, so the label must not say it again. */
+html body .hnes-settings a.hnes-settings-switchrow.hnes-settings-on .hnes-settings-name {
+  font-weight: 400;
+  color: inherit;
+}
+
+/*
+ * The bindings, listed. Two grid columns rather than a row element each, so the
+ * keys line up on their right edge whatever their width.
+ */
+.hnes-keys {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 5px var(--hnes-gap-2);
+  padding: var(--hnes-gap-1) var(--hnes-gap-2) var(--hnes-gap-1);
+  font-size: var(--hnes-size-xs);
+  color: var(--hnes-fg-muted);
+}
+.hnes-keys kbd {
+  font: inherit;
+  min-width: 1em;
+  padding: 1px 5px;
+  text-align: center;
+  color: var(--hnes-fg);
+  background: var(--hnes-bg);
+  border: 1px solid var(--hnes-border);
+  /* The thicker bottom edge is the whole keycap illusion at this size. */
+  border-bottom-width: 2px;
+  border-radius: 4px;
+}
+
+/* The one row in the panel that does something rather than sets something, so
+   it is the one that has to look pressable: every other row is told apart by
+   its mark, and this one has no state to mark. */
+html body .hnes-settings a.hnes-settings-action {
+  margin-top: var(--hnes-gap-1);
+  border: 1px solid var(--hnes-border);
+  border-radius: var(--hnes-radius);
+}
+
+/* A line of explanation belonging to a group rather than to any one row: what
+   being in the set means, and how much is stored. */
+.hnes-settings-note {
+  padding: 0 var(--hnes-gap-2) var(--hnes-gap-1);
+  font-size: var(--hnes-size-xs);
+  line-height: 1.35;
+  color: var(--hnes-fg-muted);
 }
 
 .mourning { border-top: 5px solid var(--hnes-fg-strong); }
