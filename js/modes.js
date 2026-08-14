@@ -70,6 +70,7 @@
 
   var ON_OFF = [{ id: 'on' }, { id: 'off' }];
 
+  /** @type {HNESModeSpec[]} */
   var MODES = [
     {
       key: 'hnesTheme', attr: 'data-hnes-theme', label: 'Theme', ui: 'list',
@@ -181,7 +182,10 @@
     },
 
     apply: function (root, spec, value) {
-      if (this.indexOf(spec, value) > 0) root.setAttribute(spec.attr, value);
+      // Only a painting spec has an attribute to write. Callers filter on that
+      // already; this is what makes the function safe to call without doing so.
+      if (!spec.attr) return;
+      if (this.indexOf(spec, value) > 0) root.setAttribute(spec.attr, String(value));
       else root.removeAttribute(spec.attr);
     },
 

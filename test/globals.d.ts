@@ -13,6 +13,12 @@
  * and the two cannot drift without the checker saying so.
  */
 
+// jquery-linkify, vendored under js/. It patches the jQuery prototype at load
+// time, which @types/jquery has no way to know about.
+interface JQuery<TElement = HTMLElement> {
+  linkify(options?: Record<string, any>): JQuery<TElement>;
+}
+
 interface HNESModeValue {
   id: string;
   label?: string;

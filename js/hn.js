@@ -33,8 +33,8 @@ var InlineReply = {
         doesn't work that way with collapsible comments*/
       $(this).css('display', 'none');
 
-      domain = window.location.origin;
-      link = domain + '/' + $(this).attr('href');
+      var domain = window.location.origin;
+      var link = domain + '/' + $(this).attr('href');
 
       if ($(this).next().hasClass('reply_form')) {
         $(this).next().show();
@@ -55,14 +55,17 @@ var InlineReply = {
     /* Reply button */
     $('.rbutton').on('click', function(e) {
       e.preventDefault();
-      link = $(this).attr('data');
-      text = $(this).prev().val();
+      // Read here rather than carried over from the handler above, which used to
+      // leave it on the global object for this one to pick up.
+      var domain = window.location.origin;
+      var link = $(this).attr('data');
+      var text = $(this).prev().val();
       //Hide cancel button and change reply text
       $(this).next().hide();
       $(this).attr("disabled","true");
       $(this).attr("value","Posting...");
       //Add loading spinner
-      image = $('<img style="vertical-align:middle;margin-left:5px;"/>');
+      var image = $('<img style="vertical-align:middle;margin-left:5px;"/>');
       image.attr('src',chrome.runtime.getURL("images/spin.gif"));
       $(this).after(image);
       //Post
@@ -78,12 +81,14 @@ var InlineReply = {
   postCommentTo: function(link, domain, text, button) {
     InlineReply.disableButtonAndBox(button);
     $.ajax({
-      accepts: "text/html",
+      // A map keyed by dataType, not a bare string — jQuery ignored the string,
+      // so the Accept header this meant to send was never set.
+      accepts: { '*': 'text/html' },
       url: link
     }).done(function(html) {
-      fnid = $(html).find('input[name="parent"]').attr('value');
-      whence = $(html).find('input[name="goto"]').attr('value');
-      hmac = $(html).find('input[name="hmac"]').attr('value');
+      var fnid = $(html).find('input[name="parent"]').attr('value');
+      var whence = $(html).find('input[name="goto"]').attr('value');
+      var hmac = $(html).find('input[name="hmac"]').attr('value');
       InlineReply.sendComment(domain, fnid, whence, hmac, text);
     }).fail(function(xhr, status, error) {
       InlineReply.enableButtonAndBox(button);
@@ -98,7 +103,7 @@ var InlineReply = {
        'hmac': hmacarg,
        'text': textarg }
     ).always(function(a) {
-      window.location.reload(true);
+      window.location.reload();   // the force-reload argument was dropped from the spec
     });
   },
 
@@ -172,28 +177,30 @@ var CommentTracker = {
     var comment_info_as = document.querySelectorAll('.subtext a');
     var comment_info_el = comment_info_as[comment_info_as.length - 1];
 
+    // The id is read off the href, so anything that is not a link is the same
+    // case as no link at all — the old `.length == 0` half of this test asked a
+    // DOM element for a jQuery property and so was never true.
+    var href = comment_info_el instanceof HTMLAnchorElement ? comment_info_el.href : '';
+    // Falls back to the address bar, which is where the id is on a page whose
+    // last subtext link is something else. .match returns null in both places
+    // and the old code indexed the result without checking.
+    var id_match = href.match(/id=(\d+)/) || window.location.search.match(/id=(\d+)/);
+
     // if there is no 'discuss' or 'n comment(s)' link it's some other kind of page (e.g. profile)
-    if (!comment_info_el || comment_info_el.length == 0) {
+    if (!href || !id_match) {
       return {"id": window.location.pathname + window.location.search,
               "num": 0,
               "last_comment_id": CommentTracker.getLastCommentId()
               }
     }
 
-    var page_id = comment_info_el.href.match(/id=(\d+)/);
-    if (page_id.length) {
-      page_id = Number(page_id[1]);
-    }
-    else {
-      page_id = window.location.search.match(/id=(\d+)/);
-      console.error('NO PAGEID', page_id);
-    }
+    var page_id = Number(id_match[1]);
 
-    var comment_info_text = comment_info_el.textContent;
-    var comment_num = comment_info_text.split(" ")[0];
-    if (comment_num) {
-      comment_num = Number(comment_num);
-    }
+    var comment_info_text = comment_info_el.textContent || '';
+    // The delimiter is a literal &nbsp;, which is what HN puts between the
+    // count and the word, as in "3&nbsp;comments".
+    var count_text = comment_info_text.split(" ")[0];
+    var comment_num = count_text ? Number(count_text) : count_text;
 
     var last_id = CommentTracker.getLastCommentId();
 
@@ -651,7 +658,7 @@ class HNComments {
       const visit = (n) => {
         let acc = 0;
         for (let i = 0; i < n.children.length; i++) {
-          acc += visit(n.children[i], acc);
+          acc += visit(n.children[i]);
         }
         const res = acc + n.children.length;
         n.descCount = res;
@@ -667,7 +674,6 @@ class HNComments {
     var commentTree = document.querySelector('#hnmain table.comment-tree');
     var itemList = document.querySelector('#hnmain table.itemlist');
     var threadList = document.querySelector('#hnmain table.comments-table');
-    var threadList;
     if (!commentTree && !itemList && !threadList) {
       console.warn('unrecognized markup detected, no commentTree, itemList, or threadList');
       return;
@@ -802,11 +808,8 @@ var HN = {
             $('#content').after(morelink);
           }
 
-          let storyIdResults = /id=(\w+)/.exec(window.location.search)
-          let storyId = false;
-          if (storyIdResults) {
-            storyId = /id=(\w+)/.exec(window.location.search)[1] ;
-          }
+          let storyIdResults = /id=(\w+)/.exec(window.location.search);
+          let storyId = storyIdResults ? storyIdResults[1] : false;
           HN.hnComments = new HNComments(storyId);
           HN.doCommentsList(pathname, track_comments);
         }
@@ -994,7 +997,9 @@ var HN = {
                           .attr('aria-expanded', 'false')
                           .html(HN.GEAR_SVG),
           host = $('<span/>').addClass('hnes-settings-host').append(link),
-          panel = null,
+          // An empty set rather than null: the panel is built on first open, and
+          // every use before that (.not(), .css()) is a no-op on one.
+          panel = $(),
           // Tracked rather than read back off the DOM: jQuery's :visible measures
           // the element, which forces a synchronous layout of the whole document —
           // expensive on a long thread, and for a fact we already know. Same
@@ -1023,7 +1028,7 @@ var HN = {
         $('.nav-drop-down').not(panel).hide();
         $('.more-arrow > a.active').removeClass('active');
 
-        if (!panel) host.append(panel = HN.buildSettingsPanel());
+        if (!panel.length) host.append(panel = HN.buildSettingsPanel());
         open = true;
         HN.markSettings(panel);
         panel.css('display', 'block');
@@ -1071,7 +1076,7 @@ var HN = {
 
       // Consecutive specs sharing a label share one heading, which is what puts
       // two switches under a single "Reading" instead of a heading each.
-      var group = null, heading = null;
+      var group = $(), heading = '';
       HNESModes.list.forEach(function(spec) {
         if (spec.label !== heading) {
           heading = spec.label;
@@ -1244,7 +1249,7 @@ var HN = {
         });
       });
       panel.find('.hnes-settings-switchrow').each(function() {
-        $(this).attr('aria-checked', $(this).hasClass('hnes-settings-on'));
+        $(this).attr('aria-checked', $(this).hasClass('hnes-settings-on') ? 'true' : 'false');
       });
     },
 
@@ -1384,7 +1389,7 @@ var HN = {
       //enable highlighting of clicked links
       HN.enableLinkHighlighting();
 
-      HN.replaceVoteButtons(true);
+      HN.replaceVoteButtons();
     },
 
     /*addClassToCommenters: function() {
@@ -1400,12 +1405,9 @@ var HN = {
       //add classes to comment page header (OP post) and the table containing all the comments
       var comments;
 
-      let itemIdResults = /id=(\w+)/.exec(window.location.search)
-      var itemId = false;
-      if (itemIdResults) {
-        itemId = /id=(\w+)/.exec(window.location.search)[1] ;
-      }
-      below_header = $('#content table');
+      let itemIdResults = /id=(\w+)/.exec(window.location.search);
+      var itemId = itemIdResults ? itemIdResults[1] : false;
+      var below_header = $('#content table');
 
       $("<p id='loading_comments'>Loading comments</p>").insertBefore(below_header[1])
 
@@ -1553,7 +1555,7 @@ var HN = {
     },
 
     getFormattingHelp: function(links_work) {
-      help = '<p>Blank lines separate paragraphs.</p>' +
+      var help = '<p>Blank lines separate paragraphs.</p>' +
              '<p>Text after a blank line that is indented by two or more spaces is reproduced verbatim (this is intended for code).</p>' +
              '<p>Text surrounded by asterisks is italicized, if the character after the first asterisk isn\'t whitespace.</p>';
       if (links_work)
@@ -1622,7 +1624,7 @@ var HN = {
       load_div.load(moreurl + " > center > table > tbody > tr:nth-child(3) > td > table > tbody > tr", function(response) {
         $(".comments-table > tbody").append(load_div.children());
         $(".morelink").remove();
-        morelink = $('.title a[rel="nofollow"]:contains(More)');
+        var morelink = $('.title a[rel="nofollow"]:contains(More)');
         if (morelink) {
           HN.loadMoreLink(morelink);
         }
@@ -1637,22 +1639,13 @@ var HN = {
       }
     },
 
-    replaceVoteButtons: function(isPostList) {
+    // Only ever called for a post list. The comment-page branch that used to sit
+    // here called jQuery's .size(), removed in 3.0, so it could not have run
+    // since the 3.2.1 upgrade.
+    replaceVoteButtons: function() {
       $('img[src$="grayarrow.gif"]').replaceWith('<div class="up-arrow"></div>');
       $('img[src$="graydown.gif"]').replaceWith('<div class="down-arrow last-arrow"></div>');
-
-      if (isPostList) {
-        $('div.up-arrow').addClass('postlist-arrow');
-      } else {
-        // any up-arrows that don't have a down arrow next to them, add the last-arrow class
-        // as well, which will give a bit extra margin before the show/hide link
-        $('div.up-arrow').each(function() {
-          var numbuttons = $($(this).parents('center').get(0)).find('a').size();
-          if (numbuttons == 1) {
-            $(this).addClass('last-arrow');
-          }
-        });
-      }
+      $('div.up-arrow').addClass('postlist-arrow');
     },
 
     addInfoToUsers: function() {
@@ -1750,7 +1743,7 @@ var HN = {
     },
 
     displayUserScore: function(el, upvotes) {
-      userscoreEl = el.parentElement.querySelector('.hnes-user-score');
+      var userscoreEl = el.parentElement.querySelector('.hnes-user-score');
       userscoreEl.textContent = upvotes;
       userscoreEl.parentElement.classList.remove('noscore');
     },
@@ -1786,7 +1779,7 @@ var HN = {
       });
 
       var commenter = $('.author:contains('+author+')');
-      for (i = 0; i < commenter.length; i++) {
+      for (var i = 0; i < commenter.length; i++) {
         var tagText = $(commenter[i]).parent().find('.hnes-tagText'),
             tagEdit = $(commenter[i]).parent().find('.hnes-tagEdit');
 
@@ -1823,7 +1816,9 @@ var HN = {
           comments = $('<a>-</a>');
         }
 
-        comments_link = $(at).attr('href');
+        // Function-scoped, not shared: this runs per row, and as a global every
+        // row read whatever the previous one wrote.
+        var comments_link = $(at).attr('href');
 
         if (comments.text() == "discuss" || /ago$/.test(comments.text())) {
           comments = $("<a/>").html('0')
@@ -1948,7 +1943,9 @@ var HN = {
                          ['upvoted', '/upvoted', "Stories you've voted for"],
                          ['favorites', '/favorites', "Stories you've favorited"]
                        ];
-      var new_active = false;
+      // An empty set is the sentinel: .text() and .append() on one are no-ops,
+      // so nothing downstream needs a null check.
+      var new_active = $();
       for (var i in user_pages) {
         var link_text = user_pages[i][0];
         var link_href = user_pages[i][1];
@@ -1963,7 +1960,7 @@ var HN = {
 
         hidden_div.append(link);
       }
-      if (new_active) {
+      if (new_active.length) {
         /*
          * `||` here made the guard always true — no path is both /upvoted and
          * /favorites — so the two pages it names were the two it let through,
@@ -2001,7 +1998,7 @@ var HN = {
       );
       user_links.append(hidden_div);
 
-      user_drop_toggle = function() {
+      var user_drop_toggle = function() {
         user_drop.find('a').toggleClass('active')
         hidden_div.toggle();
       }
@@ -2018,14 +2015,17 @@ var HN = {
      */
     rewriteNavigation: function() {
       HNESModes.ready(function() {
-        var chosen = HNESModes.selected(HNESModes.spec('hnesNav')),
+        // A missing spec would mean the descriptor list moved under us; showing
+        // every section beats showing none.
+        var nav_spec = HNESModes.spec('hnesNav'),
+            chosen = nav_spec ? HNESModes.selected(nav_spec) : null,
             visible_pages = [],
             hidden_pages = [];
 
         // Split in HNESModes.sections order rather than in the order they were
         // picked, so moving one section across never reorders the others.
         HNESModes.sections.forEach(function(section) {
-          (chosen.indexOf(section.id) >= 0 ? visible_pages : hidden_pages).push(section);
+          (!chosen || chosen.indexOf(section.id) >= 0 ? visible_pages : hidden_pages).push(section);
         });
 
         HN.paintNavigation(visible_pages, hidden_pages);
@@ -2069,7 +2069,7 @@ var HN = {
         var hidden_div = $('<div/>').attr('id', 'nav-others')
                                     .addClass('nav-drop-down');
 
-        var new_active = false;
+        var new_active = $();
         hidden_pages.forEach(function(section) {
           var new_link = $('<a/>').attr('href', section.href)
                                   .attr('title', section.hint)
@@ -2088,12 +2088,12 @@ var HN = {
         // the kind of dead affordance the panel exists to avoid.
         if (hidden_pages.length) topsel.append(more_link).append(hidden_div);
 
-        if (new_active)
+        if (new_active.length)
           topsel.append($('<span/>').text('|').append(new_active));
 
         navigation.empty().append(topsel);
 
-        toggle_more_link = function() {
+        var toggle_more_link = function() {
           more_link.find('a').toggleClass('active');
           hidden_div.toggle();
         }
@@ -2163,9 +2163,12 @@ var HN = {
           // the submit form unguarded — `j` mid-reply scrolled the page out
           // from under it. Asking the focused element covers all of them, and
           // covers boxes HN adds later without being told about them.
-          var el = e.target;
-          if (el && (el.isContentEditable ||
-                     /^(?:INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+          // jQuery's types say Document here; the runtime value is the focused
+          // element, which is what the instanceof below establishes.
+          var el = /** @type {*} */ (e.target);
+          if (el instanceof HTMLElement &&
+              (el.isContentEditable ||
+               /^(?:INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
           if (e.ctrlKey || !HNESModes.on('hnesKeys')) return;
 
           if (e.which == j) {
@@ -2260,9 +2263,11 @@ var HN = {
       var MILD    = 75;
       var MEDIUM  = 99;
       $('.score').each(function(i){
-        var score = $(this).html();
-
-        score = score.replace(/[a-z]/g, '');
+        // parseInt rather than the string compare this used to do: "" coerced to
+        // 0 and took the no-heat branch, which is a real score of zero. A row
+        // with no score at all is skipped instead.
+        var score = parseInt($(this).html().replace(/[a-z]/g, ''), 10);
+        if (isNaN(score)) return;
 
         if (score < NO_HEAT) {
           $(this).addClass('no-heat');

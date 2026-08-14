@@ -43,26 +43,53 @@ callback.
 `declare var` adds the property to globalThis, `modes.js`'s own assignment is
 checked against that declaration, so the two cannot drift silently.
 
-**It is a report, not a gate.** The first run gave 113 errors and it still exits
-non-zero; wiring it into a release check means working that number down first.
-What it found:
+**It is a report, not a gate.** The first run gave 113 errors; fixing everything
+below took that to 24, and it still exits non-zero. Wiring it into a release
+check means finishing the last group first.
+
+Bugs it found, all fixed:
 
 - **`hn.js` threw for every logged-in user on `/upvoted` and `/favorites`.** A
   guard written `!= '/upvoted' || != '/favorites'` is true for every possible
   path, so the two pages it names were the two it let through — and they are
-  exactly the two with no `?id=` for the next line to match against. Fixed.
+  exactly the two with no `?id=` for the next line to match against.
+- **`CommentTracker.getInfo` had a dead guard and a live crash.** It tested
+  `comment_info_el.length == 0` on a DOM element, where `.length` is
+  `undefined`, so that half never fired; then it indexed the result of a
+  `.match` that returns `null` whenever the last subtext link carries no `id=`.
+- **The inline reply never sent the Accept header it meant to.** jQuery's
+  `accepts` takes a map keyed by dataType; it was passed the bare string
+  `"text/html"`, which jQuery ignores.
+- **`domain` crossed two click handlers through the global object.** The reply
+  handler wrote it; the post handler read it. Both now read the page origin.
+- **`comments_link` was a global read and written inside a per-row `.each`,**
+  so every row shared one slot and it worked only because the two were adjacent.
+- **Heat classes compared a string to a number.** `"" < 50` coerces to `0 < 50`,
+  so a row whose score had been emptied was silently rated `no-heat` — a real
+  score of zero. It parses now, and skips a row with no score.
+
+Cleanup it found:
+
 - **~38 implicit globals** — `link`, `domain`, `text`, `image`, `fnid`,
   `whence`, `hmac`, `below_header`, `help`, `morelink`, `userscoreEl`, `i`,
   `comments_link`, `user_drop_toggle`, `toggle_more_link`. Assignments with no
   `var`, leaking into the isolated world and shared across every call.
 - **`.size()` at `hn.js:1650`**, removed from jQuery in 3.0 and absent from the
-  vendored 3.2.1. It never fires: the only caller passes `true`, so the branch
-  holding it is dead.
+  vendored 3.2.1. It never fired: the only caller passes `true`, so the whole
+  branch holding it was dead and is gone, along with the parameter.
 - Smaller ones — `location.reload(true)` (the argument was dropped from the
-  spec), `visit(n.children[i], acc)` against a one-parameter `visit`, and
-  `var threadList` declared twice in `HNComments.apply`.
-- **~19 null-safety findings** on the positional walks. That list is the point
-  of the exercise: it is the only inventory of where HN's markup is assumed.
+  spec), `visit(n.children[i], acc)` against a one-parameter `visit`,
+  `var threadList` declared twice in `HNComments.apply`, and two copies of
+  `/id=(\w+)/.exec(location.search)` where one result was already in hand.
+- `false` used as a null sentinel for a jQuery object in four places. An empty
+  set says the same thing and needs no special case at the point of use.
+
+What is left is **~24 null-safety findings** on the positional walks — mostly
+`querySelector(…).href` with no check. That list is the point of the exercise:
+it is the only inventory of where HN's markup is assumed, and each one needs a
+decision about what should happen when the element is missing rather than a
+mechanical fix. `degenerate.mjs` already holds the property that matters
+meanwhile — that a page this broken stays usable.
 
 ## migration.mjs — run this before any release that changes storage
 
