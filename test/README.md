@@ -229,5 +229,6 @@ body with no form is exactly what used to make `/login` throw.
 ## What these do not cover
 
 Logged-in flows — voting, tagging, inline replies, `/threads` with real content —
-all need a session, so they are still manual. So is Firefox, which loads the
-same manifest as an event page (`about:debugging` → Load Temporary Add-on).
+all need a session, so they are still manual. So is Firefox: `./zip.sh` writes a
+Firefox-shaped manifest into `../HNES-firefox.zip`, which `about:debugging` →
+Load Temporary Add-on will take as-is.

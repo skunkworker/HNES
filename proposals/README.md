@@ -37,8 +37,9 @@ brick the page.
 Two things the tests will not tell you, and both still need a human:
 
 - **Logged-in flows** — voting, tagging, inline replies, `/threads` with real content.
-- **Firefox** — `about:debugging` → Load Temporary Add-on, and confirm the shared
-  manifest loads as an event page.
+- **Firefox** — `./zip.sh`, then `about:debugging` → Load Temporary Add-on →
+  `../HNES-firefox.zip`, and confirm it loads as an event page. The tree's
+  manifest is Chrome-shaped; `zip.sh` writes the Firefox background key.
 
 Also unverified: `poll`, `user`, `threads` and `submit` against real bodies. Every
 automated attempt so far drew a 429, and a 429 body is not a page type — rerun
@@ -88,9 +89,12 @@ flips to MV3. There is no second chance once a user updates.
 `manifest.json`:
 
 - `manifest_version: 2` → `3`, version → `2.0.0`
-- `background.scripts` → `background: { service_worker, scripts }` — Chrome reads
-  `service_worker`, Firefox reads `scripts` and ignores the other. One manifest, both
-  browsers; this is MDN's documented cross-browser form.
+- `background.scripts` → `background.service_worker`. MDN's cross-browser form carries
+  both keys, and that shipped first — but Chrome ignores `scripts` in MV3 *with a
+  warning*, and Firefox has no service worker at all (bug 1573659), so each browser
+  complained about the other's key. The tree is Chrome-shaped now and `zip.sh` writes
+  the Firefox background key into that package, along with dropping `offscreen` and
+  `minimum_chrome_version`, which Firefox does not know either.
 - `web_accessible_resources` → MV3 object form (`{ resources, matches }`). Without this,
   `spin.gif` / `unvote.gif` / `tag.svg` are blocked in the page context.
 - Drop `templates/comment.html` from that list — the file has never existed in git; the
@@ -261,8 +265,8 @@ No test suite exists, so this is manual. Load unpacked via `chrome://extensions`
    page — these use the fragile positional selectors and are where regressions hide.
 5. `https://hckrnews.com` — unread comment counts appear (this has been dead for years).
 6. Logged in **and** logged out; vote/unvote round-trip.
-7. Firefox: `about:debugging` → Load Temporary Add-on, confirm the shared manifest loads
-   as an event page.
+7. Firefox: `./zip.sh`, then `about:debugging` → Load Temporary Add-on →
+   `../HNES-firefox.zip`, and confirm it loads as an event page.
 
 ## Open decisions
 

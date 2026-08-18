@@ -112,8 +112,11 @@ do for you:
   disclosure. HNES stores everything locally and makes no network requests of
   its own, so the disclosure is short, but it is not zero.
 
-`zip.sh` stays exactly as it is. iOS becomes a third target alongside it, not a
-change to the existing two.
+`zip.sh` already writes a per-browser background key — Chrome has no event page
+and Firefox has no service worker, so neither package can carry both. Safari
+takes either, and picks with `browser_specific_settings.safari.preferred_environment`;
+the converter is what would decide that. iOS becomes a third target alongside the
+two, not a change to them.
 
 ## Permissions on iOS work differently, and it shows
 
