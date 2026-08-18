@@ -10,11 +10,11 @@ A Hacker News extension for Firefox and Chrome which changes lots of things.
 
 Features
 --------
-* Completely new style
-* Easy access to all pages
+* Completely new style, with light and dark themes and five colour palettes
+* A settings panel behind the gear in the header
+* Easy access to all pages, and you pick which ones are header tabs
 * Enhanced comment threads
   * Collapsible comments
-  * Inline commenting
   * Link to parent
   * Display all comments on paginated threads
   * Highlight the original poster
@@ -25,7 +25,7 @@ Features
 * Graphs on polls
 * Clickable links in self posts and on users profile pages
 * New smooth and scalable up & down vote arrows
-* Keyboard controls on index pages:
+* Keyboard controls on index pages, which can be turned off:
   * j - Next item
   * k - Previous item
   * o - Open story
@@ -33,7 +33,46 @@ Features
   * p - View comments
   * c - View comments in a new tab
   * b - Open both the comments and the story in new tabs
+  * h - Open the settings panel
 * Tag users
+
+Settings
+--------
+The gear at the right of the header, in four tabs:
+
+* **Look** - theme (auto, light, dark), view (comfortable, compact, flow), and
+  five palettes
+* **Reading** - new-comment highlighting, hckrnews.com unread counts
+* **Sections** - which of Hacker News' fourteen section pages are header tabs
+  and which stay under "more"
+* **Storage** - how much the extension is holding, and a way to clear collapsed
+  comment state, which is the one store that never shrinks
+
+Everything is stored locally in `chrome.storage.local`; nothing is sent
+anywhere. The Look settings apply immediately, and to any other Hacker News tab
+you have open. The rest are read while a page loads and turned into markup, so
+changing one offers a reload rather than pretending it took effect.
+
+Building and loading
+--------------------
+Manifest V3, and the repo is the extension - there is no build step.
+
+* **Chrome** - `chrome://extensions`, turn on Developer mode, Load unpacked, and
+  pick this directory.
+* **Firefox** - `./zip.sh`, then `about:debugging` -> Load Temporary Add-on ->
+  `../HNES-firefox.zip`.
+
+The two cannot share a background key: Chrome has no event page and Firefox has
+no service worker, and each warns about the other's key. So the manifest in the
+tree is Chrome-shaped and `zip.sh` writes the Firefox one into that package.
+`zip.sh` builds both store packages.
+
+Tests
+-----
+Seven harnesses drive a real browser with the extension loaded, because almost
+everything here is rewriting a page it does not control. `cd test && npm install`,
+then see [test/README.md](test/README.md) for what each one covers and which
+need the network.
 
 Firefox AMO link
 ----------------
@@ -45,7 +84,6 @@ https://chrome.google.com/webstore/detail/bappiabcodbpphnojdiaddhnilfnjmpm
 
 TODO
 ----
-* Options page
 * Put search in a better place + ajax auto-complete
 * Do something with un-threaded comment lists (e.g. best comments)
 * Make profiles prettier
