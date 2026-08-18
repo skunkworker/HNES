@@ -313,11 +313,29 @@ await shot('05-ember-flow.png');
 //    with no attribute on <html>: hn.js reads them and decides what to build or
 //    bind, so the assertion is what the next load does, not what the row shows.
 // A switch has one row, for values[0]; off is drawn as that row unmarked.
+const reloadShown = () => page.evaluate(() => {
+  const bar = document.querySelector('.hnes-settings-reload');
+  return bar ? getComputedStyle(bar).display !== 'none' : 'missing';
+});
+// Everything picked so far repaints live, so the bar must still be down. A bar
+// that is always up says nothing, which is the failure mode here.
+check('a repaint asks for no reload', await reloadShown() === false);
+
 await openTab('reading');
 await page.click('[data-hnes-opt="hnesKeys:on"]');
 await page.waitForTimeout(200);
 check('a switch flips', await page.evaluate(() =>
   !document.querySelector('[data-hnes-opt="hnesKeys:on"].hnes-settings-on')));
+// The point of the bar: this saved, and nothing on the page moved.
+check('a behaviour change asks for a reload', await reloadShown() === true);
+// It is 50-odd pixels under the tallest pane, which is the one that set the
+// panel's cap — so it is the one that can put the scrollbar back.
+await openTab('look');
+const barFit = await page.evaluate(() => {
+  const p = document.querySelector('.hnes-settings');
+  return Math.max(0, p.scrollHeight - p.clientHeight);
+});
+check('the bar does not overflow the panel', barFit === 0, `${barFit}px over`);
 
 // With shortcuts off, h must not reach the panel either — it is one of them.
 await page.keyboard.press('Escape');
@@ -350,7 +368,12 @@ await page.click('.hnes-settings-host > a');
 await openTab('sections');
 await page.click('[data-hnes-opt="hnesNav:ask"]');
 await page.waitForTimeout(300);
-await page.reload({ waitUntil: 'domcontentloaded' });
+// Reloaded from the bar rather than by the driver: the button is the only way
+// a user applies this, so it is the path worth asserting.
+await Promise.all([
+  page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
+  page.click('.hnes-settings-reload a'),
+]);
 await page.waitForTimeout(2500);
 const nav = await page.evaluate(() => ({
   tabs: [...document.querySelectorAll('.nav-links > span > a')].map(a => a.textContent),
@@ -358,6 +381,12 @@ const nav = await page.evaluate(() => ({
 }));
 check('a chosen section is a header tab', nav.tabs.includes('ask'), nav.tabs.join(' '));
 check('and has left the more menu', !nav.more.includes('ask'), nav.more.join(' '));
+// The flag lives on the page, so the reload is what clears it. A bar still up
+// on a page that already has the setting would be asking for nothing.
+await page.click('.hnes-settings-host > a');
+await page.waitForTimeout(200);
+check('the reload clears the bar', await reloadShown() === false);
+await page.keyboard.press('Escape');
 await shot('07-sections.png');
 
 // The one store with no expiry, and the only place that can say how big it is.

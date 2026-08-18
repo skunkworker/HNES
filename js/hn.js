@@ -932,7 +932,10 @@ var HN = {
       // A panel left open while another tab changes something: boot.js has
       // already restyled the page underneath it, so without this its marks say
       // one thing and the page says another.
-      HNESModes.subscribe(function() {
+      HNESModes.subscribe(function(touched) {
+        // A behaviour change made anywhere leaves this page showing the old
+        // nav, so the bar is owed here too — on the next open if not this one.
+        if (touched.some(function(spec) { return !spec.attr; })) HN.settingsStale = true;
         if (open) HN.markSettings(panel);
       });
 
@@ -979,7 +982,8 @@ var HN = {
       groups['Storage'] = HN.buildStorageGroup();
       order.push('Storage');
 
-      return panel.append(HN.buildSettingsTabs(groups, order));
+      panel.append(HN.buildSettingsTabs(groups, order));
+      return panel.append(HN.buildReloadBar());
     },
 
     /*
@@ -1061,6 +1065,35 @@ var HN = {
       return $().add(strip).add(wrap);
     },
 
+    /* Set when a spec with no `attr` changes — here or in another tab. Not
+       cleared: the only thing that clears it is the reload it is asking for. */
+    settingsStale: false,
+
+    /*
+     * A behaviour spec saves the instant it is clicked, but nothing on the page
+     * moves: hn.js read it at document_end and built the header nav and the key
+     * bindings from what storage said then. Clicking a section and watching the
+     * header not change reads as the click having failed, which is the one
+     * thing a settings panel must never look like. So it says so, and offers
+     * the reload rather than leaving the user to find it.
+     *
+     * Below the panes rather than inside one, because it is raised by whichever
+     * tab was open and answered by any of them.
+     */
+    buildReloadBar: function() {
+      var row = $('<a/>').attr('href', 'javascript:void(0)')
+                         .addClass('hnes-settings-opt hnes-settings-action')
+                         .append($('<span/>').addClass('hnes-settings-text')
+                           .append($('<span/>').addClass('hnes-settings-name')
+                                               .text('Reload to apply'))
+                           .append($('<span/>').addClass('hnes-settings-hint')
+                                               .text('Saved. The header and the shortcuts are built on load')));
+      row.click(function() { window.location.reload(); });
+      return $('<div/>').addClass('hnes-settings-reload')
+                        .css('display', 'none')
+                        .append(row);
+    },
+
     buildSettingsRows: function(spec, panel) {
       var opts = $('<div/>').addClass('hnes-settings-opts');
 
@@ -1116,6 +1149,7 @@ var HN = {
 
       row.click(function() {
         HNESModes.commit(spec, HN.nextSetting(spec, value));
+        if (!spec.attr) HN.settingsStale = true;
         HN.markSettings(panel);
       });
 
@@ -1220,6 +1254,8 @@ var HN = {
       panel.find('.hnes-settings-switchrow').each(function() {
         $(this).attr('aria-checked', $(this).hasClass('hnes-settings-on') ? 'true' : 'false');
       });
+      panel.find('.hnes-settings-reload')
+           .css('display', HN.settingsStale ? 'block' : 'none');
     },
 
     /*

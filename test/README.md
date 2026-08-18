@@ -173,11 +173,11 @@ still *looks* fine, because the failsafe animation shows it anyway.
 Opens the gear, picks options out of the panel, and checks the attribute is
 written, the mark moves, the panel closes on click-away and Escape, and the
 choice persists across a reload with the attribute set *before* the reveal. Also
-checks palette and view do not disturb each other. 39 checks, exits non-zero on
+checks palette and view do not disturb each other. 43 checks, exits non-zero on
 any failure.
 
 The viewport is set to 1280x900 rather than Playwright's 1280x720 default. The
-panel is capped at `min(70vh, 560px)`, and at 720 it is the `70vh` half that
+panel is capped at `min(70vh, 615px)`, and at 720 it is the `70vh` half that
 binds — so the pane-fit check below would be measuring the window instead of the
 panel.
 
@@ -200,6 +200,13 @@ Several exist because they are the ways this can break silently:
   reached 1519px of content in a 536px box, with macOS fading out the only thing
   on screen that said so. A setting added to the wrong tab puts it straight back
   there, and this is the only check that would notice
+- **a repaint asks for no reload**, **a behaviour change asks for a reload**, and
+  **the reload clears the bar** — a setting with no `attr` saves instantly and
+  changes nothing on screen, so the panel offers the reload. A bar that is always
+  up says nothing, which is why two of these three assert it is *down*
+- **the bar does not overflow the panel** — it is ~50px under the tallest pane,
+  which is the pane that set the panel's cap, so it is the thing that can undo
+  the check above
 
 Note the click-away target is hunted with `elementFromPoint` rather than hard
 coded. There is no inert pixel down the left of an HNES front page — the comment

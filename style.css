@@ -746,9 +746,12 @@ html body #header .hnes-settings-host > a.hnes-gear {
      below are what keep it visible: naming a scrollbar-colour is what makes
      Chromium draw a classic scrollbar instead of the overlay one macOS fades
      out, which was leaving a scrolling panel with nothing on screen saying so.
-     560px is the tallest pane (Look, at 545px) plus headroom, so the cap only
-     binds on a short viewport — where 70vh takes over anyway. */
-  max-height: min(70vh, 560px);
+     615px is the tallest pane (Look, at 545px) plus the reload bar plus
+     headroom, so the cap only binds on a short viewport — where 70vh takes over
+     anyway. The bar is inside the scroll box on purpose: sticking it to the
+     bottom would keep it reachable but would also make a scrolling panel the
+     supported case again, and not scrolling is what the tabs bought. */
+  max-height: min(70vh, 615px);
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--hnes-fg-subtle) transparent;
@@ -971,6 +974,24 @@ html body .hnes-settings a.hnes-settings-action {
   margin-top: var(--hnes-gap-1);
   border: 1px solid var(--hnes-border);
   border-radius: var(--hnes-radius);
+}
+
+/*
+ * The reload bar, and the counterpart of the tab strip's rule at the other end
+ * of the panel: it is raised by whichever pane is open and answered by all of
+ * them, so it sits under the panes rather than in one.
+ */
+.hnes-settings-reload {
+  margin-top: var(--hnes-gap-2);
+  padding-top: var(--hnes-gap-2);
+  border-top: 1px solid var(--hnes-border);
+}
+/* The container above does the spacing, so the shared action rule's own margin
+   would double it. Accented because this one is asking to be pressed, where
+   the Storage button only has to be findable. */
+html body .hnes-settings .hnes-settings-reload a.hnes-settings-action {
+  margin-top: 0;
+  border-color: var(--hnes-orange);
 }
 
 /* A line of explanation belonging to a group rather than to any one row: what

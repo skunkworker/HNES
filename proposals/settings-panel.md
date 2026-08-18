@@ -287,13 +287,45 @@ other way:
   tab switch cost a second layout would be deferring the wrong half.
 
 The panel keeps `overflow-y: auto` and a `max-height` for the short-viewport
-case, where 70vh binds before the 560px cap does. It also now sets
+case, where 70vh binds before the 615px cap does. It also now sets
 `scrollbar-color`, which is what makes Chromium draw a classic scrollbar instead
 of the overlay one — so on the occasions it does scroll, it says so.
 
+## Saved, but not shown
+
+There are two families of setting here and only one of them can repaint. A spec
+with an `attr` goes onto `<html>` and the stylesheet does the rest, live and
+across tabs. A spec without one — the two Reading switches, Keyboard, and all
+fourteen Sections — was read at `document_end` and turned into markup and
+bindings that already exist. Clicking it saves instantly and moves nothing.
+
+Adding `ask` to the header and watching the header not change is
+indistinguishable from the click having failed, and a settings panel cannot look
+like that. So a bar appears under the panes: **Reload to apply**, with the word
+*Saved* first, because the reload is applying a stored choice rather than
+committing an unstored one. It is up until the reload it is asking for.
+
+- **Under the panes, not inside one.** It is raised by whichever tab was open —
+  Reading or Sections — and answered by any of them.
+- **Keyed on `!spec.attr`, not on a list of keys.** That distinction is already
+  the one `modes.js` documents at the top of the file, so a new behaviour spec
+  gets the bar without anyone remembering to add it.
+- **Cross-tab too.** `HNESModes.subscribe` reports which specs changed; a
+  behaviour change made in another tab leaves this page just as stale, so the
+  bar is owed here as well — on the next open if the panel is shut.
+- **Derived, not tracked.** `markSettings` decides the bar's visibility on every
+  open, the same way it recomputes the marks rather than tracking them, so there
+  is no second copy of the state to go stale.
+
+It cost 50px, which is what took the `max-height` cap from 560 to 615: the Look
+pane set that cap and the bar has to fit under it. Sticking the bar to the
+bottom of the scroll box would have avoided that, but it would also have made a
+scrolling panel a supported case again, and not scrolling is the thing the tabs
+bought.
+
 ## Tests
 
-`test/controls.mjs` was rewritten and now asserts rather than logs — 39 checks,
+`test/controls.mjs` was rewritten and now asserts rather than logs — 43 checks,
 exit code and all. Beyond the old coverage (attribute written, choice persists,
 applied before the reveal, palette and view orthogonal) it adds:
 
@@ -316,6 +348,11 @@ applied before the reveal, palette and view orthogonal) it adds:
 - the strip draws **four tabs**, exactly one pane is shown, the strip is **one
   tab stop**, and **no label is clipped** — the cells are fixed-width, so a
   longer label would be cut rather than wrap
+- the reload bar is **down for a repaint**, **up after a behaviour change**, and
+  **down again after the reload** — two of the three assert it is down, because a
+  bar that is always up says nothing
+- the bar **does not overflow the panel**, checked on the tallest pane, which is
+  the one that set the cap it has to fit under
 - **no pane needs scrolling.** This is the assertion that protects the change: a
   setting added to the wrong tab puts the panel back behind the scrollbar, and
   nothing else here would notice
@@ -357,7 +394,7 @@ than passing, as ever.
   `tablist` — roving tabindex, arrows, wrap — but arrow-key navigation *within* a
   group is still not implemented, which the fourteen-row Sections list is the
   first group long enough to want.
-- **Firefox** loads the same manifest as an event page and supports
+- **Firefox** loads `zip.sh`'s Firefox package as an event page and supports
   `storage.onChanged`, but this has not been driven by hand there yet.
 - **Three floating menus, three implementations.** The `more` menu and the user
   menu each toggle their own visibility and their trigger's `.active` blindly,
