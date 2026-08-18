@@ -15,125 +15,6 @@
 * Under MIT license, see LICENSE
 */
 
-var InlineReply = {
-  init: function() {
-    $('a[href^="reply?"]').click(function(e) {
-      if (HN.isLoggedIn()) {
-        e.preventDefault();
-      }
-      else {
-        return;
-      }
-
-      //make sure there's no stray underlining between Reply and Cancel
-      $(this).addClass('underlined');
-      $(this).parent('u').replaceWith($(this));
-
-      /*remove the 'reply' link without actually hide()ing it because it
-        doesn't work that way with collapsible comments*/
-      $(this).css('display', 'none');
-
-      var domain = window.location.origin;
-      var link = domain + '/' + $(this).attr('href');
-
-      if ($(this).next().hasClass('reply_form')) {
-        $(this).next().show();
-      }
-      else {
-        //add buttons and box
-        $(this).after(
-          '<div class="reply_form"> \
-          <textarea rows="4" cols="60"/> \
-          <input type="submit" value="Reply" class="rbutton"/> \
-          <input type="submit" value="Cancel" class="cbutton"/> \
-          </div>'
-        );
-        $(this).parent().find('.rbutton').attr('data', link);
-      }
-    });
-
-    /* Reply button */
-    $('.rbutton').on('click', function(e) {
-      e.preventDefault();
-      // Read here rather than carried over from the handler above, which used to
-      // leave it on the global object for this one to pick up.
-      var domain = window.location.origin;
-      var link = $(this).attr('data');
-      var text = $(this).prev().val();
-      //Hide cancel button and change reply text
-      $(this).next().hide();
-      $(this).attr("disabled","true");
-      $(this).attr("value","Posting...");
-      //Add loading spinner
-      var image = $('<img style="vertical-align:middle;margin-left:5px;"/>');
-      image.attr('src',chrome.runtime.getURL("images/spin.gif"));
-      $(this).after(image);
-      //Post
-      InlineReply.postCommentTo(link, domain, text, $(this));
-    });
-
-    /* Cancel button */
-    $('.cbutton').on('click', function(e) {
-      InlineReply.hideButtonAndBox($(this).prev());
-    });
-  },
-
-  postCommentTo: function(link, domain, text, button) {
-    InlineReply.disableButtonAndBox(button);
-    $.ajax({
-      // A map keyed by dataType, not a bare string — jQuery ignored the string,
-      // so the Accept header this meant to send was never set.
-      accepts: { '*': 'text/html' },
-      url: link
-    }).done(function(html) {
-      var fnid = $(html).find('input[name="parent"]').attr('value');
-      var whence = $(html).find('input[name="goto"]').attr('value');
-      var hmac = $(html).find('input[name="hmac"]').attr('value');
-      InlineReply.sendComment(domain, fnid, whence, hmac, text);
-    }).fail(function(xhr, status, error) {
-      InlineReply.enableButtonAndBox(button);
-    });
-  },
-
-  sendComment: function(domain, fnidarg, whencearg, hmacarg, textarg) {
-    $.post(
-      domain + "/comment",
-      {'parent': fnidarg,
-       'goto': whencearg,
-       'hmac': hmacarg,
-       'text': textarg }
-    ).always(function(a) {
-      window.location.reload();   // the force-reload argument was dropped from the spec
-    });
-  },
-
-  disableButtonAndBox: function(button) {
-    button.attr('disabled', 'disabled');
-    button.next().attr('disabled', 'disabled');
-    button.prev().attr('disabled', 'disabled');
-  },
-
-  enableButtonAndBox: function(button) {
-    button.removeAttr('disabled');
-    button.next().removeAttr('disabled');
-    button.prev().removeAttr('disabled');
-  },
-
-  hideButtonAndBox: function(button) {
-    var button_and_box = button.parent();
-    var reply_link = button_and_box.prev();
-    var textbox = button_and_box.find('textarea');
-    if (textbox.val().length > 0) {
-      reply_link.text("reply (saved)");
-    }
-    else {
-      reply_link.text("reply");
-    }
-    reply_link.css('display', 'inline')
-    button_and_box.hide();
-  }
-}
-
 var CommentTracker = {
   init: function() {
     var page_info = CommentTracker.getInfo();
@@ -1399,7 +1280,6 @@ var HN = {
     },*/
 
     doCommentsList: function(pathname, track_comments) {
-//      InlineReply.init();
       //HN.addClassToCommenters();
 
       //add classes to comment page header (OP post) and the table containing all the comments

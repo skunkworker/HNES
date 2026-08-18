@@ -1578,8 +1578,6 @@ input[name="q"] { width: 270px; }
 form[action="http://hn.algolia.com/"],
 form[action="//hn.algolia.com/"] { margin: 0 auto; }
 
-.reply_form { width: 100%; max-width: 640px; }
-.reply_form input[type="submit"] { margin: 3px; }
 a[href^="reply"]:visited { color: var(--hnes-link); }
 .input-help { color: var(--hnes-fg-muted); font-size: var(--hnes-size-xs); }
 
@@ -1758,8 +1756,7 @@ html body .yclinks {
   /* Narrow screens cannot afford the full gutter indent at every nesting level. */
   .hnes-comment section.body { margin-left: var(--hnes-gap-4); }
 
-  form textarea,
-  .reply_form { max-width: 100%; }
+  form textarea { max-width: 100%; }
 }
 
 @media (max-width: 560px) {

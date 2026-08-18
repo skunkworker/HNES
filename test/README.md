@@ -57,11 +57,12 @@ Bugs it found, all fixed:
   `comment_info_el.length == 0` on a DOM element, where `.length` is
   `undefined`, so that half never fired; then it indexed the result of a
   `.match` that returns `null` whenever the last subtext link carries no `id=`.
-- **The inline reply never sent the Accept header it meant to.** jQuery's
-  `accepts` takes a map keyed by dataType; it was passed the bare string
-  `"text/html"`, which jQuery ignores.
-- **`domain` crossed two click handlers through the global object.** The reply
-  handler wrote it; the post handler read it. Both now read the page origin.
+- **The inline reply was broken twice over, and unreachable.** Its `accepts`
+  was the bare string `"text/html"` where jQuery wants a map keyed by dataType,
+  so the Accept header it meant to send never went; and `domain` crossed its two
+  click handlers through the global object, one writing what the other read. The
+  block turned out to be dead — `InlineReply.init()` has been commented out at
+  its only call site — so it is gone rather than fixed.
 - **`comments_link` was a global read and written inside a per-row `.each`,**
   so every row shared one slot and it worked only because the two were adjacent.
 - **Heat classes compared a string to a number.** `"" < 50` coerces to `0 < 50`,
