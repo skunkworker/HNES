@@ -689,9 +689,7 @@ var HN = {
             $('#content').after(morelink);
           }
 
-          let storyIdResults = /id=(\w+)/.exec(window.location.search);
-          let storyId = storyIdResults ? storyIdResults[1] : false;
-          HN.hnComments = new HNComments(storyId);
+          HN.hnComments = new HNComments(HN.currentItemId());
           HN.doCommentsList(pathname, track_comments);
         }
         else if (pathname == '/favorites' ||
@@ -758,6 +756,13 @@ var HN = {
     isLoggedIn: function() {
       var logout_elem = $('.pagetop a:contains(logout)');
       return (logout_elem.length > 0 ? true : false);
+    },
+
+    /* The item this page is about, or false where HN serves no ?id= — logged-in
+       /upvoted and /favorites, and the list pages. */
+    currentItemId: function() {
+      var results = /id=(\w+)/.exec(window.location.search);
+      return results ? results[1] : false;
     },
 
     initElements: function() {
@@ -1285,8 +1290,7 @@ var HN = {
       //add classes to comment page header (OP post) and the table containing all the comments
       var comments;
 
-      let itemIdResults = /id=(\w+)/.exec(window.location.search);
-      var itemId = itemIdResults ? itemIdResults[1] : false;
+      var itemId = HN.currentItemId();
       var below_header = $('#content table');
 
       $("<p id='loading_comments'>Loading comments</p>").insertBefore(below_header[1])
@@ -1878,12 +1882,7 @@ var HN = {
       );
       user_links.append(hidden_div);
 
-      var user_drop_toggle = function() {
-        user_drop.find('a').toggleClass('active')
-        hidden_div.toggle();
-      }
-      user_drop.click(user_drop_toggle);
-      hidden_div.click(user_drop_toggle);
+      HN.wireDropDown(user_drop, hidden_div);
       hidden_div.hide();
       HN.setTopColor();
     },
@@ -1973,17 +1972,23 @@ var HN = {
 
         navigation.empty().append(topsel);
 
-        var toggle_more_link = function() {
-          more_link.find('a').toggleClass('active');
-          hidden_div.toggle();
-        }
-        more_link.click(toggle_more_link);
-        hidden_div.click(toggle_more_link);
+        HN.wireDropDown(more_link, hidden_div);
 
         if (hidden_pages.length) {
           hidden_div.offset({'left': more_link.position().left});
           hidden_div.hide();
         }
+    },
+
+    /* Both header dropdowns behave alike: the trigger's link marks itself
+       active while the drawer is open, and a click on either closes it. */
+    wireDropDown: function(trigger, drawer) {
+      var toggle = function() {
+        trigger.find('a').toggleClass('active');
+        drawer.toggle();
+      };
+      trigger.click(toggle);
+      drawer.click(toggle);
     },
 
     toggleMoreNavLinks: function(e) {

@@ -182,8 +182,8 @@
     },
 
     apply: function (root, spec, value) {
-      // Only a painting spec has an attribute to write. Callers filter on that
-      // already; this is what makes the function safe to call without doing so.
+      // Only a painting spec has an attribute to write. This is the one place
+      // that checks, so no caller has to.
       if (!spec.attr) return;
       if (this.indexOf(spec, value) > 0) root.setAttribute(spec.attr, String(value));
       else root.removeAttribute(spec.attr);
@@ -192,7 +192,7 @@
     applyAll: function (root, items) {
       var self = this;
       MODES.forEach(function (spec) {
-        if (spec.attr) self.apply(root, spec, items[spec.key]);
+        self.apply(root, spec, items[spec.key]);
       });
     },
 
@@ -205,7 +205,7 @@
     commit: function (spec, value) {
       var item = {};
       VALUES[spec.key] = String(value);
-      if (spec.attr) this.apply(document.documentElement, spec, value);
+      this.apply(document.documentElement, spec, value);
       item[spec.key] = String(value);
       try { chrome.storage.local.set(item); } catch (e) { /* see load() */ }
     },
@@ -258,7 +258,7 @@
           MODES.forEach(function (spec) {
             if (!(spec.key in changes)) return;
             VALUES[spec.key] = changes[spec.key].newValue;
-            if (spec.attr) self.apply(root, spec, changes[spec.key].newValue);
+            self.apply(root, spec, changes[spec.key].newValue);
             touched.push(spec);
           });
           if (touched.length) {
