@@ -30,6 +30,10 @@ const check = (name, ok, note = '') => results.push({ name, ok: !!ok, note });
 const skip = (name, note) => results.push({ name, ok: true, skipped: true, note });
 
 const page = await ctx.newPage();
+// 900 rather than the 1280x720 default: the panel is capped at min(70vh, 560px)
+// and at 720 it is 70vh that binds, so the pane-fit check below would be
+// measuring the window rather than the panel.
+await page.setViewportSize({ width: 1280, height: 900 });
 const errors = [];
 page.on('pageerror', e => errors.push(String(e)));
 // Script errors only: a failed request is HN's answer to being driven, and the
@@ -44,9 +48,13 @@ await page.goto('https://news.ycombinator.com/', { waitUntil: 'domcontentloaded'
 await page.waitForTimeout(2500);
 
 const shot = p => page.screenshot({ path: `${SHOTS}/${p}`, fullPage: false });
-// Storage is the last group, and the Sections group has a note of its own —
-// so this has to name the group rather than take the first note in the panel.
-const STORAGE_NOTE = '.hnes-settings > .hnes-settings-group:last-child .hnes-settings-note';
+// Storage has a pane to itself, and the Sections group has a note of its own —
+// so this has to name the pane rather than take the first note in the panel.
+const STORAGE_NOTE = '#hnes-pane-storage .hnes-settings-note';
+// Every group but Theme, View and Palette is behind a tab now, so reaching one
+// is two clicks. Clicking the tab already selected is a no-op, so this is safe
+// to call without tracking which pane is up.
+const openTab = async id => { await page.click('#hnes-tab-' + id); await page.waitForTimeout(120); };
 // Null-safe: a check that navigated away has no panel, and should report that
 // rather than throw and take the rest of the run with it.
 const panelDisplay = () => page.evaluate(() => {
@@ -119,6 +127,53 @@ check('storage reports a size', /^\d+(\.\d+)? (B|KB|MB) stored$/.test(opened.not
 // instead of carrying its own would collapse these to one value.
 check('swatches show their own palette',
   new Set(opened.swatchBg).size === 5, opened.swatchBg.join(' '));
+
+// The panel is four panes rather than one column. It had reached 1519px of
+// content in a 536px box — four of the seven groups below the fold on a
+// full-height desktop, behind an overlay scrollbar macOS fades out.
+const strip = await page.evaluate(() => {
+  const tabs = [...document.querySelectorAll('.hnes-settings-tabs [role="tab"]')];
+  return {
+    labels: tabs.map(t => t.textContent).join(' '),
+    selected: tabs.filter(t => t.getAttribute('aria-selected') === 'true').length,
+    // Roving tabindex: one stop for Tab, arrows move within the strip.
+    stops: tabs.filter(t => t.tabIndex === 0).length,
+    // Fixed-width cells, so a longer label would be cut rather than wrap.
+    clipped: tabs.filter(t => t.scrollWidth > t.clientWidth).map(t => t.textContent),
+    shown: [...document.querySelectorAll('.hnes-settings-pane')]
+      .filter(p => getComputedStyle(p).display !== 'none').length,
+  };
+});
+check('the panel is tabbed', strip.labels === 'Look Reading Sections Storage', strip.labels);
+check('one pane at a time', strip.shown === 1 && strip.selected === 1,
+  `${strip.shown} shown, ${strip.selected} selected`);
+check('one tab stop for the strip', strip.stops === 1, `${strip.stops} stops`);
+check('no tab label clipped', strip.clipped.length === 0, strip.clipped.join(' ') || 'none');
+
+// The point of the change, and the thing a new setting can quietly undo: every
+// pane has to fit the box, or the panel is back behind the scrollbar.
+const fit = [];
+for (const id of ['look', 'reading', 'sections', 'storage']) {
+  await openTab(id);
+  fit.push({ id, over: await page.evaluate(() => {
+    const p = document.querySelector('.hnes-settings');
+    return Math.max(0, p.scrollHeight - p.clientHeight);
+  }) });
+}
+check('no pane needs scrolling', fit.every(f => f.over === 0),
+  fit.map(f => `${f.id}:${f.over}`).join(' '));
+
+// Arrows move within the strip and wrap; the tab that gains selection gains
+// focus with it, or a keyboard user is left pointing at the pane they left.
+await openTab('look');
+await page.focus('#hnes-tab-look');
+await page.keyboard.press('ArrowLeft');
+const wrapped = await page.evaluate(() => document.activeElement.id);
+await page.keyboard.press('ArrowRight');
+const unwrapped = await page.evaluate(() => document.activeElement.id);
+check('arrows walk the strip and wrap',
+  wrapped === 'hnes-tab-storage' && unwrapped === 'hnes-tab-look',
+  `${wrapped} -> ${unwrapped}`);
 await shot('02-panel-open.png');
 
 // 3. pick a palette: attribute written, mark moved, panel stays open
@@ -258,6 +313,7 @@ await shot('05-ember-flow.png');
 //    with no attribute on <html>: hn.js reads them and decides what to build or
 //    bind, so the assertion is what the next load does, not what the row shows.
 // A switch has one row, for values[0]; off is drawn as that row unmarked.
+await openTab('reading');
 await page.click('[data-hnes-opt="hnesKeys:on"]');
 await page.waitForTimeout(200);
 check('a switch flips', await page.evaluate(() =>
@@ -271,6 +327,7 @@ await page.waitForTimeout(200);
 check('h is off with the shortcuts', await panelDisplay() === 'none');
 
 await page.click('.hnes-settings-host > a');
+await openTab('reading');
 await page.click('[data-hnes-opt="hnesKeys:on"]');   // back on
 await page.keyboard.press('Escape');
 await page.waitForTimeout(150);
@@ -290,6 +347,7 @@ check('typing is not navigation', await panelDisplay() === 'none');
 // A section moved out of "more" is a header tab on the next load — this is the
 // one setting that rebuilds markup rather than restyling it.
 await page.click('.hnes-settings-host > a');
+await openTab('sections');
 await page.click('[data-hnes-opt="hnesNav:ask"]');
 await page.waitForTimeout(300);
 await page.reload({ waitUntil: 'domcontentloaded' });
@@ -304,7 +362,7 @@ await shot('07-sections.png');
 
 // The one store with no expiry, and the only place that can say how big it is.
 await page.click('.hnes-settings-host > a');
-await page.waitForTimeout(200);
+await openTab('storage');
 await page.click('.hnes-settings-action');
 await page.waitForTimeout(600);
 const cleared = await page.evaluate(sel => document.querySelector(sel).textContent, STORAGE_NOTE);

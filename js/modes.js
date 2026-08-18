@@ -125,6 +125,23 @@
     }
   ];
 
+  /*
+   * Which groups sit behind which tab. The panel had grown to 1519px of content
+   * in a 536px box — every group after Palette was below the fold even on a
+   * full-height desktop, behind an overlay scrollbar macOS fades out — so it is
+   * one pane at a time now. Grouped so the tallest pane still fits unscrolled.
+   *
+   * Here rather than in hn.js for the same reason MODES is: a spec's `label` and
+   * the tab that has to hold it are one fact, and splitting it across two files
+   * is what let boot.js and hn.js drift apart before this file existed.
+   */
+  var TABS = [
+    { id: 'look',     label: 'Look',     groups: ['Theme', 'View', 'Palette'] },
+    { id: 'reading',  label: 'Reading',  groups: ['Reading', 'Keyboard'] },
+    { id: 'sections', label: 'Sections', groups: ['Sections'] },
+    { id: 'storage',  label: 'Storage',  groups: ['Storage'] }
+  ];
+
   var VALUES = {},
       loaded = false,
       started = false,
@@ -134,6 +151,7 @@
   globalThis.HNESModes = {
     list: MODES,
     sections: SECTIONS,
+    tabs: TABS,
 
     keys: function () {
       return MODES.map(function (spec) { return spec.key; });

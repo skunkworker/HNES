@@ -11,9 +11,10 @@ is which of the plan's supporting arguments turned out to be doing no work.
 
 One `<a>` carrying an inline gear at the right end of the header — in the third
 cell, beside the login link or the user menu, rather than among the section tabs
-— and one panel built into the page behind it. Three groups — Theme, View,
-Palette — each a list of options with the current one marked. Theme and view
-carry a line of explanation each; the palette rows *are* the swatches.
+— and one panel built into the page behind it. Seven groups across four tabs —
+Look, Reading, Sections, Storage — each group a list of options with the current
+one marked. Theme and view carry a line of explanation each; the palette rows
+*are* the swatches.
 
 The stored keys (`hnesTheme`, `hnesDensity`, `hnesPalette`) and the `data-hnes-*`
 attributes on `<html>` are unchanged, so there was no migration and no version
@@ -244,9 +245,55 @@ being told about them. The flag it replaces is gone.
 That fix is not what the toggle is for, but it is what looking for a reason to
 want the toggle turned it up.
 
+## Tabs, because it outgrew the column
+
+The panel shipped holding three lists. By the time it held seven groups it was
+**1519px of content in a 536px box** — measured, not estimated — which is about
+a third of itself on screen at once. Everything after Palette was below the
+fold, and on a full-height 1080px desktop, not just on a laptop.
+
+What made that bad rather than merely long is that nothing said so. macOS
+defaults to overlay scrollbars, which fade out a second after you stop
+scrolling, so a panel with four hidden groups looked exactly like a panel with
+none. A user who never scrolled had no way to learn that Sections or Storage
+existed.
+
+Four tabs, grouped so each pane fits without scrolling:
+
+| Tab | Groups | Pane height |
+|---|---|---|
+| Look | Theme, View, Palette | 488px |
+| Reading | Reading, Keyboard | 416px |
+| Sections | Sections | 442px |
+| Storage | Storage | 106px |
+
+The grouping is not arbitrary and it is not only about balance: Look is the
+three that paint, Reading is the two that change what a comment page does plus
+the bindings that move around it, Sections is the header, Storage is the one
+thing here that is maintenance rather than preference.
+
+Three details worth stating, because each is a decision that could have gone the
+other way:
+
+- **The tab list lives in `modes.js`, next to `MODES`.** A spec's `label` and the
+  tab that has to hold it are one fact. Splitting them across two files is
+  exactly what let boot.js and hn.js drift apart before `modes.js` existed, and
+  that lesson is already written at the top of that file.
+- **A group no tab claims still appears**, in the pane that opens. Adding a spec
+  with a new label and forgetting the tab list should look wrong immediately
+  rather than silently dropping the setting out of the panel.
+- **Panes are built up front, not on demand.** The panel is already a lazy build
+  — nothing exists until the first open — and having paid that once, making a
+  tab switch cost a second layout would be deferring the wrong half.
+
+The panel keeps `overflow-y: auto` and a `max-height` for the short-viewport
+case, where 70vh binds before the 560px cap does. It also now sets
+`scrollbar-color`, which is what makes Chromium draw a classic scrollbar instead
+of the overlay one — so on the occasions it does scroll, it says so.
+
 ## Tests
 
-`test/controls.mjs` was rewritten and now asserts rather than logs — 33 checks,
+`test/controls.mjs` was rewritten and now asserts rather than logs — 39 checks,
 exit code and all. Beyond the old coverage (attribute written, choice persists,
 applied before the reveal, palette and view orthogonal) it adds:
 
@@ -266,6 +313,13 @@ applied before the reveal, palette and view orthogonal) it adds:
 - a chosen section is a **header tab after a reload**, and has left the `more`
   menu — the one setting that rebuilds markup rather than restyling it
 - clearing storage **reports what it freed**
+- the strip draws **four tabs**, exactly one pane is shown, the strip is **one
+  tab stop**, and **no label is clipped** — the cells are fixed-width, so a
+  longer label would be cut rather than wrap
+- **no pane needs scrolling.** This is the assertion that protects the change: a
+  setting added to the wrong tab puts the panel back behind the scrollbar, and
+  nothing else here would notice
+- **arrows walk the strip and wrap**, carrying focus with the selection
 
 Two things about the harness itself. Hacker News rate-limits a driven browser
 readily, and a 429 is neither a pass nor a failure — it is a page the run never
@@ -296,10 +350,11 @@ than passing, as ever.
   `upvoteUserData` write one record per username with no way to list, edit or
   clear them. That is a list view rather than a panel row — closer to a
   sub-page, and the reason it is not here.
-- **Keyboard navigation inside the panel.** The options are
+- **Keyboard navigation inside a group.** The options are
   `<a href="javascript:void(0)">`, so they are focusable and the panel closes on
   Escape; the gear carries `aria-expanded` and the switches `role="switch"` with
-  `aria-checked` kept in step by `markSettings`. Arrow-key navigation within a
+  `aria-checked` kept in step by `markSettings`. The tab strip is a proper
+  `tablist` — roving tabindex, arrows, wrap — but arrow-key navigation *within* a
   group is still not implemented, which the fourteen-row Sections list is the
   first group long enough to want.
 - **Firefox** loads the same manifest as an event page and supports

@@ -46,11 +46,19 @@ interface HNESModeSpec {
   dflt?: string;
 }
 
+interface HNESTab {
+  id: string;
+  label: string;
+  /** Group headings this tab holds, matched against HNESModeSpec.label. */
+  groups: string[];
+}
+
 type HNESStoredValues = Record<string, any>;
 
 interface HNESModesApi {
   list: HNESModeSpec[];
   sections: HNESModeValue[];
+  tabs: HNESTab[];
   keys(): string[];
   spec(key: string): HNESModeSpec | null;
   indexOf(spec: HNESModeSpec, value: unknown): number;

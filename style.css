@@ -740,9 +740,59 @@ html body #header .hnes-settings-host > a.hnes-gear {
   text-align: left;
   font-size: var(--hnes-size-sm);
   /* A short viewport must scroll the panel rather than the page: it hangs off
-     the header, so anything taller than the viewport is unreachable. */
-  max-height: min(70vh, 520px);
+     the header, so anything taller than the viewport is unreachable. Tabs mean
+     the tallest pane clears this on any normal screen, so the scroll is now the
+     exception it was always written as. When it does happen, the two properties
+     below are what keep it visible: naming a scrollbar-colour is what makes
+     Chromium draw a classic scrollbar instead of the overlay one macOS fades
+     out, which was leaving a scrolling panel with nothing on screen saying so.
+     560px is the tallest pane (Look, at 545px) plus headroom, so the cap only
+     binds on a short viewport — where 70vh takes over anyway. */
+  max-height: min(70vh, 560px);
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--hnes-fg-subtle) transparent;
+}
+
+/*
+ * The tab strip. Equal widths rather than shrink-to-fit, so the strip reads as
+ * one control and the selected tab cannot move the others by changing width.
+ * Buttons, not the anchors the rest of the panel uses: `.nav-drop-down a`
+ * pins colour with !important and forces nowrap, and a tab is not a link.
+ */
+.hnes-settings-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: var(--hnes-gap-2);
+  padding-bottom: var(--hnes-gap-2);
+  border-bottom: 1px solid var(--hnes-border);
+}
+html body .hnes-settings button.hnes-settings-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  appearance: none;
+  margin: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--hnes-size-xs);
+  line-height: 1.2;
+  color: var(--hnes-fg-muted);
+  padding: 5px 2px;
+  border-radius: var(--hnes-radius);
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+}
+html body .hnes-settings button.hnes-settings-tab:hover {
+  background: var(--hnes-surface-alt);
+}
+/* Orange for the selection, the same word the checkmarks and switches use.
+   Deliberately not bold: the strip is four fixed cells and "Sections" already
+   fills one, so a weight change is the one thing here that could overflow. */
+html body .hnes-settings button.hnes-settings-tab-on {
+  color: var(--hnes-orange);
+  background: var(--hnes-surface-alt);
 }
 
 .hnes-settings-group + .hnes-settings-group {

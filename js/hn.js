@@ -962,20 +962,103 @@ var HN = {
 
       // Consecutive specs sharing a label share one heading, which is what puts
       // two switches under a single "Reading" instead of a heading each.
-      var group = $(), heading = '';
+      var groups = {}, order = [], heading = '';
       HNESModes.list.forEach(function(spec) {
         if (spec.label !== heading) {
           heading = spec.label;
-          group = $('<div/>').addClass('hnes-settings-group')
-                             .append($('<div/>').addClass('hnes-settings-label')
-                                                .text(spec.label));
-          panel.append(group);
+          groups[heading] = $('<div/>').addClass('hnes-settings-group')
+                                       .append($('<div/>').addClass('hnes-settings-label')
+                                                          .text(spec.label));
+          order.push(heading);
         }
-        group.append(HN.buildSettingsRows(spec, panel));
+        groups[heading].append(HN.buildSettingsRows(spec, panel));
       });
 
-      panel.append(HN.buildStorageGroup());
-      return panel;
+      // Not a mode, so it is not in the list — but it is a group like the rest
+      // and a tab has to be able to name it.
+      groups['Storage'] = HN.buildStorageGroup();
+      order.push('Storage');
+
+      return panel.append(HN.buildSettingsTabs(groups, order));
+    },
+
+    /*
+     * One pane at a time. The panel had reached 1519px of content in a 536px
+     * box: four of its seven groups were below the fold on a full-height
+     * desktop, and the only thing saying so was an overlay scrollbar that macOS
+     * fades out after a second.
+     *
+     * Every pane is built up front. The panel is already a lazy build — nothing
+     * exists until the first open — and having paid that once, making a tab
+     * switch cost a second one would be the wrong half to defer.
+     */
+    buildSettingsTabs: function(groups, order) {
+      var strip = $('<div/>').addClass('hnes-settings-tabs').attr('role', 'tablist'),
+          wrap  = $('<div/>').addClass('hnes-settings-panes'),
+          tabs  = [],
+          panes = [],
+          taken = {},
+          current = 0;
+
+      var select = function(at) {
+        current = at;
+        tabs.forEach(function(tab, i) {
+          var on = i === at;
+          tab.toggleClass('hnes-settings-tab-on', on)
+             .attr('aria-selected', on ? 'true' : 'false')
+             // Roving tabindex: the strip is one stop for Tab, and the arrows
+             // move within it. Four stops in a row would be four stops between
+             // the gear and the first setting.
+             .attr('tabindex', on ? '0' : '-1');
+          panes[i].css('display', on ? 'block' : 'none');
+        });
+      };
+
+      HNESModes.tabs.forEach(function(spec, i) {
+        var pane = $('<div/>').addClass('hnes-settings-pane')
+                              .attr('role', 'tabpanel')
+                              .attr('id', 'hnes-pane-' + spec.id)
+                              .attr('aria-labelledby', 'hnes-tab-' + spec.id);
+
+        spec.groups.forEach(function(name) {
+          if (!groups[name]) return;   // a tab may name a group a build dropped
+          pane.append(groups[name]);
+          taken[name] = true;
+        });
+
+        var tab = $('<button/>').attr('type', 'button')
+                                .addClass('hnes-settings-tab')
+                                .attr('role', 'tab')
+                                .attr('id', 'hnes-tab-' + spec.id)
+                                .attr('aria-controls', 'hnes-pane-' + spec.id)
+                                .text(spec.label)
+                                .click(function() { select(i); });
+
+        tabs.push(tab);
+        panes.push(pane);
+        strip.append(tab);
+        wrap.append(pane);
+      });
+
+      // A group no tab claimed goes in the pane that opens, rather than
+      // nowhere. Adding a spec with a new label and forgetting HNESModes.tabs
+      // should look wrong on sight, not silently drop the setting.
+      order.forEach(function(name) {
+        if (!taken[name] && panes.length) panes[0].append(groups[name]);
+      });
+
+      strip.on('keydown', function(e) {
+        var step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+        if (!step) return;
+        e.preventDefault();
+        // Wraps. Four tabs is short enough that walking off one end to reach
+        // the other end is the shortest path about as often as not.
+        select((current + step + tabs.length) % tabs.length);
+        tabs[current].focus();
+      });
+
+      select(0);
+      return $().add(strip).add(wrap);
     },
 
     buildSettingsRows: function(spec, panel) {
