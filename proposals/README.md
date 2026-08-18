@@ -26,6 +26,7 @@ it correct. Verified against live `news.ycombinator.com` markup on 2026-07-31.
 | Palette as a user option | **Implemented** — [`palettes.md`](./palettes.md) |
 | Controls out of the nav | **Implemented** — [`settings-panel.md`](./settings-panel.md) |
 | Tests | **Added** — see [`../test/README.md`](../test/README.md) |
+| Safari for iOS | Proposal only — [`safari-ios.md`](./safari-ios.md) |
 
 The verification below is no longer a list to work through by hand; most of it runs.
 `test/migration.mjs` drives a real version-bump upgrade and checks the data survives,
