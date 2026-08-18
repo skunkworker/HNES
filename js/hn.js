@@ -917,7 +917,9 @@ var HN = {
         if (!panel.length) host.append(panel = HN.buildSettingsPanel());
         open = true;
         HN.markSettings(panel);
-        panel.css('display', 'block');
+        // flex, not block: the panel is three rows and only the middle one
+        // scrolls, so the strip and the reload bar stay on screen.
+        panel.css('display', 'flex');
         link.addClass('active').attr('aria-expanded', 'true');
 
         // Click-away and Esc. The stopPropagation above is what makes binding

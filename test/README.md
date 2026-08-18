@@ -173,13 +173,14 @@ still *looks* fine, because the failsafe animation shows it anyway.
 Opens the gear, picks options out of the panel, and checks the attribute is
 written, the mark moves, the panel closes on click-away and Escape, and the
 choice persists across a reload with the attribute set *before* the reveal. Also
-checks palette and view do not disturb each other. 43 checks, exits non-zero on
+checks palette and view do not disturb each other. 44 checks, exits non-zero on
 any failure.
 
 The viewport is set to 1280x900 rather than Playwright's 1280x720 default. The
 panel is capped at `min(70vh, 615px)`, and at 720 it is the `70vh` half that
 binds — so the pane-fit check below would be measuring the window instead of the
-panel.
+panel. One check resizes to 520 on purpose, to make the panes scroll, and puts
+it back.
 
 Several exist because they are the ways this can break silently:
 
@@ -207,6 +208,11 @@ Several exist because they are the ways this can break silently:
 - **the bar does not overflow the panel** — it is ~50px under the tallest pane,
   which is the pane that set the panel's cap, so it is the thing that can undo
   the check above
+- **the strip and the bar survive a scroll** — the panel is three rows and only
+  the middle one scrolls. It was one scroll box first, which took the tab strip
+  and the reload bar with it on any viewport short enough for `70vh` to bind.
+  Both scroll-fit checks measure `.hnes-settings-panes`, not `.hnes-settings`:
+  the panel is `overflow: hidden` now, so measuring it would always read zero
 
 Note the click-away target is hunted with `elementFromPoint` rather than hard
 coded. There is no inert pixel down the left of an HNES front page — the comment

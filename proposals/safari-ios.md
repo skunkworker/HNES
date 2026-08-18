@@ -180,7 +180,7 @@ that. Practically:
 - `typecheck`, `migration`, `tokens`, `degenerate` are logic and stay meaningful
   as Chrome-run proxies. They would catch a regression introduced *for* iOS.
 - `session`, `controls`, `pages` assert on live layout and would need a parallel
-  manual checklist for iOS. `controls` in particular asserts 43 things about the
+  manual checklist for iOS. `controls` in particular asserts 44 things about the
   settings panel that nothing would be checking on the platform where the panel
   is most at risk.
 

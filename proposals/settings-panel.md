@@ -318,14 +318,28 @@ committing an unstored one. It is up until the reload it is asking for.
   is no second copy of the state to go stale.
 
 It cost 50px, which is what took the `max-height` cap from 560 to 615: the Look
-pane set that cap and the bar has to fit under it. Sticking the bar to the
-bottom of the scroll box would have avoided that, but it would also have made a
-scrolling panel a supported case again, and not scrolling is the thing the tabs
-bought.
+pane set that cap and the bar has to fit under it.
+
+That was not enough on its own. The panel was one scroll box, so on any viewport
+short enough for 70vh to bind — a laptop, a window that is not full height — the
+bar scrolled out of the bottom along with everything else. A reload button you
+have to scroll to the bottom to find is the same bug the tabs were fixing, one
+layer down, and the tab strip had it too: scroll the panel and you lose the way
+out of the pane you are in.
+
+So the panel is three rows now, and only the middle one scrolls. `.hnes-settings`
+is a flex column with `overflow: hidden`; `.hnes-settings-panes` carries the
+`overflow-y: auto` and the `scrollbar-color`; the strip and the bar are `flex:
+none` at either end. The one non-obvious part is `min-height: 0` on the panes — a
+flex item defaults to `min-height: auto` and refuses to shrink below its content,
+which would push the bar back off the bottom instead of scrolling.
+
+`initSettings` sets `display: flex` rather than `block` when it opens the panel,
+since it sets display directly rather than through `.toggle()`.
 
 ## Tests
 
-`test/controls.mjs` was rewritten and now asserts rather than logs — 43 checks,
+`test/controls.mjs` was rewritten and now asserts rather than logs — 44 checks,
 exit code and all. Beyond the old coverage (attribute written, choice persists,
 applied before the reveal, palette and view orthogonal) it adds:
 
@@ -353,6 +367,9 @@ applied before the reveal, palette and view orthogonal) it adds:
   bar that is always up says nothing
 - the bar **does not overflow the panel**, checked on the tallest pane, which is
   the one that set the cap it has to fit under
+- **the strip and the bar survive a scroll** — at a 520px viewport, where 70vh
+  binds hard and the panes have to scroll, both are still inside the panel's box
+  with the panes scrolled to the bottom
 - **no pane needs scrolling.** This is the assertion that protects the change: a
   setting added to the wrong tab puts the panel back behind the scrollbar, and
   nothing else here would notice

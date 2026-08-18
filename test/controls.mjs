@@ -156,7 +156,9 @@ const fit = [];
 for (const id of ['look', 'reading', 'sections', 'storage']) {
   await openTab(id);
   fit.push({ id, over: await page.evaluate(() => {
-    const p = document.querySelector('.hnes-settings');
+    // The panes, not the panel: the panel is overflow:hidden so the strip and
+    // the reload bar stay put, which would make a measurement of it always 0.
+    const p = document.querySelector('.hnes-settings-panes');
     return Math.max(0, p.scrollHeight - p.clientHeight);
   }) });
 }
@@ -332,10 +334,37 @@ check('a behaviour change asks for a reload', await reloadShown() === true);
 // panel's cap — so it is the one that can put the scrollbar back.
 await openTab('look');
 const barFit = await page.evaluate(() => {
-  const p = document.querySelector('.hnes-settings');
+  const p = document.querySelector('.hnes-settings-panes');
   return Math.max(0, p.scrollHeight - p.clientHeight);
 });
 check('the bar does not overflow the panel', barFit === 0, `${barFit}px over`);
+
+// And when the panes do have to scroll — a short viewport, where 70vh binds
+// well before the cap — the two things that must not go with them are the strip
+// and the bar. A reload button you have to scroll to the bottom to find is the
+// same bug the tabs were fixing, one layer down.
+await page.setViewportSize({ width: 1280, height: 520 });
+await page.waitForTimeout(150);
+const pinned = await page.evaluate(() => {
+  const panel = document.querySelector('.hnes-settings');
+  const panes = document.querySelector('.hnes-settings-panes');
+  panes.scrollTop = panes.scrollHeight;
+  const box = panel.getBoundingClientRect();
+  const inside = sel => {
+    const r = document.querySelector(sel).getBoundingClientRect();
+    return r.height > 0 && r.top >= box.top - 1 && r.bottom <= box.bottom + 1;
+  };
+  return {
+    scrolls: panes.scrollHeight - panes.clientHeight > 0,
+    strip: inside('.hnes-settings-tabs'),
+    bar: inside('.hnes-settings-reload'),
+  };
+});
+check('the strip and the bar survive a scroll',
+  pinned.scrolls && pinned.strip && pinned.bar,
+  `panes scroll ${pinned.scrolls}, strip in ${pinned.strip}, bar in ${pinned.bar}`);
+await page.setViewportSize({ width: 1280, height: 900 });
+await page.waitForTimeout(150);
 
 // With shortcuts off, h must not reach the panel either — it is one of them.
 await page.keyboard.press('Escape');
