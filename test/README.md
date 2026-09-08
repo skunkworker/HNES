@@ -14,6 +14,7 @@ npm run session               # the logged-in pages, which nothing else sees
 npm run controls              # settings panel, persistence, cross-tab, orthogonality
 npm run pages                 # every page type, logged out
 npm run algolia               # hn.algolia.com still has the classes algolia.css hooks
+npm run formatting            # the formatting bar over a comment box
 ```
 
 `typecheck`, `migration`, `tokens`, `degenerate` and `session` need no network
@@ -240,6 +241,28 @@ warm rate limiter you may need to rerun the stragglers later.
 
 That rate limiting is worth keeping in mind rather than working around: a 429
 body with no form is exactly what used to make `/login` throw.
+
+## formatting.mjs — the formatting bar over a comment box
+
+Hacker News' whole markup grammar is six rules, and none of them is Markdown.
+The bar states them, rewrites a selection, and warns when a draft uses syntax HN
+will print as typed. 26 checks over one fixture, no network.
+
+The check that could not be written any other way is the submit guard. A bare
+`<button>` inside HN's form defaults to `type=submit`, so a press on Italic
+would post the comment — a bug with no undo. The fixture posts to a route that
+counts the hits, and the count has to stay at zero.
+
+The rest is arithmetic on the textarea's value: Italic wraps a selection and
+unwraps it on a second press, Code indents by two spaces and buys the blank line
+rule 4 needs, and the offered fix rewrites `**bold**` in place. Every edit goes
+through `insertText` rather than a `value` write, which is what keeps undo
+alive; the harness cannot see undo, so that one is on review.
+
+Setting the theme by attribute from the harness is a trap worth naming: the
+tokens are `light-dark()` and resolve off `color-scheme`, which `boot.js` writes.
+Flip `data-hnes-theme` by hand and the page goes dark around a white textarea.
+Drive the panel instead.
 
 ## algolia.mjs — hn.algolia.com still has the classes the sheet hooks
 

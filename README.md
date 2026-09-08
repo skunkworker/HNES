@@ -15,6 +15,10 @@ Features
   palette if you opt in
 * A settings panel behind the gear in the header
 * Easy access to all pages, and you pick which ones are header tabs
+* A formatting bar over every comment box
+  * Italic, code, quote and link buttons, and Ctrl/Cmd+I for italic
+  * Hacker News' six formatting rules, in place, plus what it does not support
+  * A warning when a draft uses Markdown Hacker News will print as typed
 * Enhanced comment threads
   * Collapsible comments
   * Link to parent
@@ -44,7 +48,8 @@ The gear at the right of the header, in four tabs:
 
 * **Look** - theme (auto, light, dark), view (comfortable, compact, flow), and
   five palettes
-* **Reading** - new-comment highlighting, hckrnews.com unread counts
+* **Reading** - new-comment highlighting, hckrnews.com unread counts, the
+  formatting bar over comment boxes, and the keyboard shortcuts
 * **Sections** - which of Hacker News' fourteen section pages are header tabs
   and which stay under "more"
 * **Storage** - how much the extension is holding, a way to clear collapsed

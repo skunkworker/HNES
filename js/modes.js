@@ -113,6 +113,11 @@
       hint: 'Unread comment counts on hckrnews.com, from the same read state'
     },
     {
+      key: 'hnesFormatBar', label: 'Writing', ui: 'toggle', values: ON_OFF,
+      name: 'Formatting bar',
+      hint: "Buttons, Hacker News' formatting rules, and a warning when a draft uses Markdown"
+    },
+    {
       key: 'hnesKeys', label: 'Keyboard', ui: 'toggle', values: ON_OFF, help: KEYS,
       name: 'Shortcuts',
       hint: 'Ignored while a text box has focus'
@@ -139,7 +144,7 @@
    */
   var TABS = [
     { id: 'look',     label: 'Look',     groups: ['Theme', 'View', 'Palette'] },
-    { id: 'reading',  label: 'Reading',  groups: ['Reading', 'Keyboard'] },
+    { id: 'reading',  label: 'Reading',  groups: ['Reading', 'Writing', 'Keyboard'] },
     { id: 'sections', label: 'Sections', groups: ['Sections'] },
     { id: 'storage',  label: 'Storage',  groups: ['Storage'] }
   ];

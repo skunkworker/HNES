@@ -793,6 +793,16 @@ var HN = {
           //make sure More link is in correct place
           $('.title:contains(More)').prev().attr('colspan', '1');
         }
+
+        // Every page that carries a comment box, not only an item page. /reply,
+        // /submit and /edit each have one and none of them reaches
+        // doCommentsList, which is where this used to be called — so all three
+        // went without the wrap, and would go without the formatting bar.
+        //
+        // The normalised pathname, not window.location's: HN serves /reply and
+        // /edit from /x, and this file has exactly one place that untangles
+        // that. A second, weaker copy of "which page is this" is what drifts.
+        HN.setUpReplyBox(pathname);
     },
 
     doPoll: function() {
@@ -871,7 +881,12 @@ var HN = {
     // its own. Wrap both so CSS can pin help to the textarea's corner, give
     // the textarea a label screen readers can announce, and grow it with
     // typed content instead of leaving it at HN's fixed 8-row height.
-    setUpReplyBox: function() {
+    setUpReplyBox: function(pathname) {
+      // Rule 5: a submission's own text field is the one place Hacker News does
+      // not turn urls into links, so the help there must not promise links and
+      // the Link button has nothing to wrap.
+      var links_work = pathname != '/submit';
+
       $('form').has('textarea[name="text"]').each(function() {
         var form = $(this),
             textarea = form.find('textarea[name="text"]'),
@@ -887,6 +902,305 @@ var HN = {
           textarea.css('height', 'auto');
           textarea.css('height', textarea[0].scrollHeight + 'px');
         });
+
+        // After the wrap rather than instead of it: the wrap is HN's own markup
+        // rearranged and must not wait on storage, while the bar is a setting
+        // and has to.
+        HNESModes.ready(function() {
+          if (HNESModes.on('hnesFormatBar')) {
+            HN.addFormatTools(box, textarea, help, links_work);
+          }
+        });
+      });
+    },
+
+    /*
+     * Hacker News' entire formatting grammar, from /formatdoc, read on
+     * 8 September 2026. One list because three things want it: the help panel
+     * under a comment box, the same panel under the profile's `about` field,
+     * and the warning below, whose offered rewrites only mean anything against
+     * these rules.
+     *
+     * `linked` marks the two url rules, which do not hold in a submission's
+     * text field.
+     */
+    FORMAT_RULES: [
+      { text: 'Blank lines separate paragraphs.' },
+      { text: 'Text surrounded by asterisks is italicized.' },
+      { text: 'To get a literal asterisk, use \\* or **.' },
+      { text: 'Text after a blank line that is indented by two or more spaces is formatted as code.' },
+      { text: 'Urls become links.', linked: true },
+      { text: 'If your url gets linked incorrectly, put it in <angle brackets> and it should work.', linked: true }
+    ],
+
+    /* Not on /formatdoc, which is the problem it exists to fix: HN documents
+       what works and never what does not, so people keep typing Markdown at
+       it and only find out after posting. A list rather than a sentence, for
+       the same reason FORMAT_RULES is one — prose is what drifted before. */
+    FORMAT_UNSUPPORTED: ['bold', 'headings', 'lists', 'blockquotes', 'tables',
+                         'backticks', '[text](url) links'],
+
+    /*
+     * The buttons. `linked` again, because <angle brackets> only mean anything
+     * where urls are linked at all.
+     */
+    FORMAT_TOOLS: [
+      { label: 'Italic', title: 'Italic (Ctrl+I)',
+        run: function(el) { HN.wrapSelection(el, '*', '*'); } },
+      { label: 'Code', title: 'Indent two spaces, after a blank line',
+        run: function(el) { HN.prefixLines(el, '  ', true); } },
+      { label: 'Quote', title: 'Quote — a reader convention, not a Hacker News rule',
+        run: function(el) { HN.prefixLines(el, '> ', false); } },
+      { label: 'Link', title: 'Wrap a url in angle brackets', linked: true,
+        run: function(el) { HN.wrapSelection(el, '<', '>'); } }
+    ],
+
+    /*
+     * Markdown that Hacker News prints as typed. Advisory only, and nothing
+     * here rewrites a draft without a click, because every pattern has a
+     * reading where the author meant it. `**text**` is the sharpest case: it
+     * is also how rule 3 escapes an asterisk, so the warning says what HN will
+     * do and leaves the choice to the author.
+     */
+    FORMAT_LINTS: [
+      {
+        re: /\*\*(?=\S)([^*\n]+?)\*\*/,
+        to: '*$1*',
+        msg: 'Bold does not work. A pair of asterisks escapes to one literal asterisk.',
+        fix: 'Use single asterisks'
+      },
+      {
+        re: /`[^`\n]+`/,
+        msg: 'Backticks do not work. Use the Code button, which indents by two spaces.'
+      },
+      {
+        re: /\[([^\]\n]+)\]\(([^)\s]+)\)/,
+        to: '$1 $2',
+        msg: 'Link syntax does not work. A bare url becomes a link on its own.',
+        fix: 'Unwrap the links'
+      },
+      {
+        /* Only where a bullet touches the next line. Bullets already separated
+           by blank lines render as the author meant, and warning about those
+           would be noise on every well-formed list. */
+        re: /^([-*+][ \t]+\S.*)\n(?=[ \t]*\S)/m,
+        to: '$1\n\n',
+        msg: 'List lines run together. Hacker News joins every line of a paragraph.',
+        fix: 'Separate with blank lines'
+      },
+      {
+        re: /^#{1,6}[ \t]+\S/m,
+        msg: 'Headings do not work. The hashes are printed as typed.'
+      }
+    ],
+
+    /*
+     * A lint's own pattern, run over the whole draft. The `g` copy is derived
+     * rather than written out a second time: two hand-kept regexes is how a
+     * character class edited in one and not the other becomes a silent no-op.
+     */
+    applyLint: function(lint, value) {
+      var flags = lint.re.flags.replace('g', '') + 'g';
+      return value.replace(new RegExp(lint.re.source, flags), lint.to);
+    },
+
+    /* Every help panel needs an id for the link's aria-controls, and a page can
+       carry more than one comment box. */
+    formatHelpSeq: 0,
+
+    /*
+     * One disclosure for both help panels — the one under a comment box and the
+     * one under the profile's `about` field. They were two implementations of
+     * the same widget, and only one of them had the aria wiring.
+     *
+     * The open state lives in aria-expanded rather than in a closure variable:
+     * the attribute has to be written anyway, and reading one back costs
+     * nothing, while :visible measures the element and forces a layout of the
+     * whole document.
+     */
+    wireHelpPanel: function(link, panel) {
+      var id = 'hnes-format-help-' + (++HN.formatHelpSeq);
+
+      panel.attr('id', id).css('display', 'none');
+      link.attr('aria-controls', id).attr('aria-expanded', 'false');
+      link.on('click', function(e) {
+        // The link navigates to /formatdoc otherwise, and a draft in an
+        // unsubmitted textarea does not survive that.
+        e.preventDefault();
+        var open = link.attr('aria-expanded') !== 'true';
+        panel.css('display', open ? '' : 'none');
+        link.attr('aria-expanded', String(open));
+      });
+      return panel;
+    },
+
+    /*
+     * The one write path for the buttons. Assigning to `value` empties the
+     * browser's undo stack, so a mis-click would cost the whole draft;
+     * insertText goes through the editing pipeline that keeps it. execCommand
+     * is deprecated and is still the only API that does this, hence the
+     * fallback rather than a straight call.
+     */
+    replaceRange: function(el, from, to, text, sel_from, sel_to) {
+      var inserted = false;
+
+      el.focus();
+      el.setSelectionRange(from, to);
+      try { inserted = document.execCommand('insertText', false, text); }
+      catch (e) { inserted = false; }
+
+      if (!inserted) {
+        el.value = el.value.slice(0, from) + text + el.value.slice(to);
+        // insertText fires `input` itself; a raw write does not, and the
+        // autosize and the warning both hang off it.
+        $(el).trigger('input');
+      }
+      el.setSelectionRange(sel_from, sel_to);
+    },
+
+    /*
+     * Wraps the selection in a marker pair, or strips a pair that is already
+     * there so a second press undoes the first. An empty selection gets the
+     * pair with the caret between them, which is the only thing a press with
+     * nothing selected can mean.
+     */
+    wrapSelection: function(el, open, close) {
+      var v = el.value,
+          s = el.selectionStart,
+          e = el.selectionEnd;
+
+      // The selection took in the markers as well as the text. Shifting inward
+      // makes that the same case as selecting the text alone, so one unwrap
+      // formula serves both rather than two hand-derived sets of offsets.
+      if (e - s >= open.length + close.length &&
+          v.slice(s, s + open.length) === open &&
+          v.slice(e - close.length, e) === close) {
+        s += open.length;
+        e -= close.length;
+      }
+
+      if (v.slice(s - open.length, s) === open && v.slice(e, e + close.length) === close) {
+        HN.replaceRange(el, s - open.length, e + close.length, v.slice(s, e),
+                        s - open.length, e - open.length);
+      }
+      else {
+        HN.replaceRange(el, s, e, open + v.slice(s, e) + close,
+                        s + open.length, e + open.length);
+      }
+    },
+
+    /* Whole lines, because both block buttons rewrite line starts. */
+    selectedLines: function(el) {
+      var v = el.value,
+          from = v.lastIndexOf('\n', el.selectionStart - 1) + 1,
+          to = v.indexOf('\n', el.selectionEnd);
+      return { from: from, to: to == -1 ? v.length : to };
+    },
+
+    /*
+     * Prefixes every touched line, or removes the prefix when all of them
+     * already carry it. `needs_blank_line` is rule 4: code is only code after a
+     * blank line, so a block written straight under a paragraph needs one made
+     * for it, and a block at the top of the box needs nothing.
+     */
+    prefixLines: function(el, prefix, needs_blank_line) {
+      var v = el.value,
+          range = HN.selectedLines(el),
+          lines = v.slice(range.from, range.to).split('\n'),
+          on = lines.every(function(line) { return line.indexOf(prefix) === 0; }),
+          body = lines.map(function(line) {
+            return on ? line.slice(prefix.length) : prefix + line;
+          }).join('\n'),
+          lead = (!on && needs_blank_line && range.from > 0 &&
+                  !/\n[ \t]*\n$/.test(v.slice(0, range.from))) ? '\n' : '';
+
+      HN.replaceRange(el, range.from, range.to, lead + body,
+                      range.from + lead.length,
+                      range.from + lead.length + body.length);
+    },
+
+    /*
+     * Buttons, help and the warning, above one textarea. Built only when
+     * hnesFormatBar is on; with it off the box keeps HN's pinned help link and
+     * nothing else about it changes.
+     */
+    addFormatTools: function(box, textarea, help, links_work) {
+      var el = textarea[0],
+          bar = $('<div/>').addClass('hnes-format-bar'),
+          panel = HN.getFormattingHelp(links_work),
+          warn = $('<div/>').addClass('hnes-format-warn').attr('aria-live', 'polite');
+
+      HN.FORMAT_TOOLS.forEach(function(tool) {
+        if (tool.linked && !links_work) return;
+        // type="button" and not a bare <button>: inside HN's form the default
+        // type is submit, so a formatting press would post the comment.
+        $('<button type="button"/>').addClass('hnes-format-btn')
+          .attr('title', tool.title)
+          .text(tool.label)
+          .on('click', function(e) { e.preventDefault(); tool.run(el); })
+          .appendTo(bar);
+      });
+
+      // HN ships the "help" link already, so reuse it rather than growing a
+      // second control for the same job. Its href stays, which keeps a
+      // middle-click on /formatdoc working.
+      if (!help.length) {
+        help = $('<a/>').attr('href', 'formatdoc').text('help');
+      }
+      help.addClass('hnes-format-help-link');
+      HN.wireHelpPanel(help, panel);
+      bar.append(help);
+
+      box.addClass('has-format-bar').prepend(bar).append(panel, warn);
+      HN.watchFormatting(el, warn);
+
+      // Bound on the textarea, not the document: the page-level key handler
+      // ignores keys while a text box has focus, by design, so it cannot carry
+      // this one.
+      textarea.on('keydown', function(e) {
+        if (e.key != 'i' && e.key != 'I') return;
+        if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+        e.preventDefault();
+        HN.wrapSelection(el, '*', '*');
+      });
+    },
+
+    /*
+     * The Markdown warning. Debounced because a pass is five regex scans of the
+     * whole draft — O(n) in its length, which is cheap once and not cheap on
+     * every keystroke of a long comment.
+     */
+    watchFormatting: function(el, warn) {
+      // 0, not null: setTimeout hands back a number, and clearTimeout(0) is a
+      // no-op, so the unset state can be the same type as the set one.
+      var timer = 0,
+          run = function() {
+            var value = el.value;
+
+            warn.empty();
+            HN.FORMAT_LINTS.forEach(function(lint) {
+              if (!lint.re.test(value)) return;
+
+              var row = $('<p/>').text(lint.msg).appendTo(warn);
+              if (!lint.to) return;
+
+              $('<button type="button"/>').addClass('hnes-format-fix')
+                .text(lint.fix)
+                .on('click', function(e) {
+                  e.preventDefault();
+                  // The whole draft as one replacement, so the rewrite is one
+                  // undo step rather than none.
+                  HN.replaceRange(el, 0, el.value.length, HN.applyLint(lint, el.value), 0, 0);
+                  el.setSelectionRange(el.value.length, el.value.length);
+                  run();
+                })
+                .appendTo(row);
+            });
+          };
+
+      $(el).on('input', function() {
+        clearTimeout(timer);
+        timer = setTimeout(run, 300);
       });
     },
 
@@ -1711,8 +2025,6 @@ var HN = {
         // move reply button to new line.
         $(".item-header input[type='submit']").css("display", "block");
 
-        HN.setUpReplyBox();
-
         var more = $('.morelink');
         //recursively load more pages on closed thread
         if (more) {
@@ -1807,17 +2119,14 @@ var HN = {
         }
         karma.next().append(can_flag_msg).append(can_create_polls_msg).append(can_downvote_msg);
 
+        // Same disclosure as the comment box's, and the same rules behind it.
+        // Built shut rather than on first click: the panel is a handful of list
+        // items, and lazily creating it was what kept this from sharing the
+        // comment box's toggle in the first place.
         var about_help = about.next().find('a[href="formatdoc"]');
-        about_help.click(function(e) {
-          e.preventDefault();
-          var input_help = about.next().find('.input-help');
-          if (input_help.length) {
-            input_help.remove();
-          }
-          else {
-            about.next().append(HN.getFormattingHelp(false));
-          }
-        });
+        if (about_help.length) {
+          about.next().append(HN.wireHelpPanel(about_help, HN.getFormattingHelp(false)));
+        }
 
         var dead_explanation = $('<p>Showdead allows you to see all the submissions and comments that have been killed by the editors.</p>');
         showdead.next().append($('<span>Default: no</span>')).append(dead_explanation);
@@ -1883,14 +2192,27 @@ var HN = {
         .insertAfter(about.closest('tr'));
     },
 
+    /*
+     * The rules as a list, built from FORMAT_RULES so the comment box and the
+     * profile's `about` field cannot drift apart the way the old hardcoded
+     * copy drifted from /formatdoc.
+     */
     getFormattingHelp: function(links_work) {
-      var help = '<p>Blank lines separate paragraphs.</p>' +
-             '<p>Text after a blank line that is indented by two or more spaces is reproduced verbatim (this is intended for code).</p>' +
-             '<p>Text surrounded by asterisks is italicized, if the character after the first asterisk isn\'t whitespace.</p>';
-      if (links_work)
-        help += '<p>Urls become links.</p>';
+      var list = $('<ul/>');
 
-      return $('<div class="input-help">').append($(help));
+      HN.FORMAT_RULES.forEach(function(rule) {
+        if (rule.linked && !links_work) return;
+        // .text() and not an HTML string: rule 6 contains <angle brackets>.
+        list.append($('<li/>').text(rule.text));
+      });
+
+      var no = HN.FORMAT_UNSUPPORTED.slice(),
+          last = no.pop();
+
+      return $('<div class="input-help"/>')
+        .append(list)
+        .append($('<p class="input-help-unsupported"/>')
+          .text('No ' + no.join(', ') + ' or ' + last + '.'));
     },
 
     prettyPrintDaysAgo: function(days) {

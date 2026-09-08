@@ -107,17 +107,17 @@ check('panel opens', opened.visible !== 'none');
 // more than three lists.
 check('every group drawn',
   opened.groups.map(g => g.label).join(' ') ===
-    'Theme View Palette Reading Keyboard Sections Storage',
+    'Theme View Palette Reading Writing Keyboard Sections Storage',
   opened.groups.map(g => `${g.label}(${g.options.length})`).join(' '));
 // A switch that is off has no row to mark, so a count is the assertion: two
 // switches on under Reading, four sections chosen, nothing under Storage.
 check('right number marked in each group',
-  opened.groups.map(g => g.marked.length).join(',') === '1,1,1,2,1,4,0',
+  opened.groups.map(g => g.marked.length).join(',') === '1,1,1,2,1,1,4,0',
   opened.groups.map(g => `${g.label}:${g.marked.length}`).join(' '));
 check('defaults marked',
   opened.groups.flatMap(g => g.marked).join(' ') ===
     'hnesTheme:auto hnesDensity:comfortable hnesPalette:classic ' +
-    'hnesNewComments:on hnesHckrnews:on hnesKeys:on ' +
+    'hnesNewComments:on hnesHckrnews:on hnesFormatBar:on hnesKeys:on ' +
     'hnesNav:top hnesNav:new hnesNav:best hnesNav:submit',
   opened.groups.flatMap(g => g.marked).join(' '));
 // The bindings were bound in hn.js and written down nowhere.

@@ -1525,13 +1525,18 @@ form textarea {
 }
 .hnes-reply-box textarea {
   display: block;
-  /* !important: the bare `textarea` rule above sets padding !important too,
-     and without room reserved here help would sit over the last typed line. */
-  padding-bottom: calc(var(--hnes-gap-3) + 1.2em) !important;
   max-height: 400px;
   /* JS grows the box itself; the native handle would just fight that and sit
      under the help link in the same corner. */
   resize: none;
+}
+/* Only where help is pinned in the textarea's corner. With the bar, help sits
+   in the bar and there is no line of room owed — scoped here rather than
+   overridden later, so the two cases do not both need !important to outrank
+   each other. The one that remains is against the bare `textarea` rule above,
+   which sets padding !important itself. */
+.hnes-reply-box:not(.has-format-bar) textarea {
+  padding-bottom: calc(var(--hnes-gap-3) + 1.2em) !important;
 }
 .hnes-reply-box a[href="formatdoc"] {
   position: absolute;
@@ -1542,6 +1547,57 @@ form textarea {
 .hnes-reply-box a[href="formatdoc"] font {
   color: var(--hnes-fg-muted);
   font-size: var(--hnes-size-xs);
+}
+
+/*
+ * The formatting bar: the buttons that rewrite the selection, then the help
+ * link pushed to the far end of the same row. Built only when hnesFormatBar is
+ * on, so every rule here is scoped to .has-format-bar or to a class the bar
+ * itself creates.
+ */
+.hnes-format-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--hnes-gap-1);
+  margin-bottom: var(--hnes-gap-1);
+}
+.hnes-format-btn,
+.hnes-format-fix {
+  font: inherit;
+  font-size: var(--hnes-size-xs);
+  line-height: 1;
+  padding: 4px var(--hnes-gap-2);
+  color: var(--hnes-fg-muted);
+  background: var(--hnes-surface);
+  border: 1px solid var(--hnes-border);
+  border-radius: var(--hnes-radius);
+  cursor: pointer;
+}
+.hnes-format-btn:hover,
+.hnes-format-fix:hover {
+  color: var(--hnes-fg);
+  border-color: var(--hnes-fg-subtle);
+}
+/* The one place the two diverge: a fix button trails the warning it belongs to,
+   while a bar button is spaced by the bar's own gap. */
+.hnes-format-fix { margin-left: var(--hnes-gap-2); }
+/* Last in the row, where HN's own help link sat before the bar existed. The
+   corner pin above would otherwise drop it on top of the buttons. */
+.hnes-reply-box.has-format-bar a[href="formatdoc"] {
+  position: static;
+  margin-left: auto;
+}
+.hnes-reply-box .input-help { margin-top: var(--hnes-gap-2); }
+.hnes-reply-box .input-help ul { margin: 0; padding-left: var(--hnes-gap-4); }
+.input-help-unsupported { margin: var(--hnes-gap-1) 0 0; color: var(--hnes-fg-subtle); }
+
+/* The Markdown warning. Advisory, so it is coloured as a warning and never
+   blocks the form. */
+.hnes-format-warn { margin-top: var(--hnes-gap-2); font-size: var(--hnes-size-xs); }
+.hnes-format-warn p {
+  margin: 0 0 var(--hnes-gap-1);
+  color: var(--hnes-danger);
 }
 input[type="text"],
 input[type="password"],

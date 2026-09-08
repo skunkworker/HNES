@@ -11,7 +11,8 @@
     "session": "node session.mjs",
     "controls": "node controls.mjs",
     "pages": "node pages.mjs",
-    "algolia": "node algolia.mjs"
+    "algolia": "node algolia.mjs",
+    "formatting": "node formatting.mjs"
   },
   "devDependencies": {
     "@types/chrome": "^0.2.6",
