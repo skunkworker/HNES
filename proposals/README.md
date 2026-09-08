@@ -33,6 +33,7 @@ it correct. Verified against live `news.ycombinator.com` markup on 2026-07-31.
 | Vote arrow and tallies | Proposal only — [`vote-arrow.md`](./vote-arrow.md) |
 | Theme hn.algolia.com | **Implemented** on 7 Sep 2026, opt-in — [`algolia.md`](./algolia.md) |
 | Formatting help and buttons | **Implemented** on 8 Sep 2026 — [`formatting.md`](./formatting.md) |
+| refined-hacker-news feature survey | Shortlist only, nothing decided — [`upstream-features.md`](./upstream-features.md) |
 
 The verification below is no longer a list to work through by hand; most of it runs.
 `test/migration.mjs` drives a real version-bump upgrade and checks the data survives,
