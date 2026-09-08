@@ -927,18 +927,20 @@ var HN = {
     GEAR_SVG: '<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd" aria-hidden="true" focusable="false"><path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"></path></svg>',
 
     /*
-     * The Bootstrap Icons "search" glyph (MIT), inline for the same reason as
-     * the gear.
+     * A magnifier drawn as strokes, inline for the same reason as the gear.
+     * Stroked rather than a library glyph so its weight can match the filled
+     * gear beside it; the outline glyphs read as a hairline next to it.
      */
-    SEARCH_SVG: '<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg>',
+    SEARCH_SVG: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10.1 10.1 14.4 14.4"/></svg>',
 
     /*
      * The header's third cell — the login link when logged out, the user menu
      * and karma when logged in — so the icons sit at the right edge rather
      * than in among the section tabs, which are navigation and not controls.
-     * That cell is right-aligned by the stylesheet, so appending puts them
-     * last. A page where HN ships no .pagetop in the cell gets one, so every
-     * caller and every stylesheet rule sees the same parent.
+     * That cell is right-aligned by the stylesheet. Search goes in first, the
+     * gear last, and the login link or user menu HN put there stays between.
+     * A page where HN ships no .pagetop in the cell gets one, so every caller
+     * and every stylesheet rule sees the same parent.
      */
     headerSlot: function() {
       var cell = $('#header td:nth-child(3)').first(),
@@ -1049,7 +1051,7 @@ var HN = {
       // The `/` binding's way in, and closeMenus's way out.
       HN.openSearch = show;
       HN.closeSearch = close;
-      slot.append(form);
+      slot.prepend(form);
     },
 
     /*
