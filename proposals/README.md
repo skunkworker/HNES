@@ -27,6 +27,10 @@ it correct. Verified against live `news.ycombinator.com` markup on 2026-07-31.
 | Controls out of the nav | **Implemented** — [`settings-panel.md`](./settings-panel.md) |
 | Tests | **Added** — see [`../test/README.md`](../test/README.md) |
 | Safari for iOS | Proposal only — [`safari-ios.md`](./safari-ios.md) |
+| Visual bugs | **Fixed** on 7 Sep 2026 — nine found on 22 Aug 2026, ranked, with screenshots: [`visual-bugs.md`](./visual-bugs.md) |
+| Polish and UX | **Implemented** on 7 Sep 2026, except the dark render sweep (2.12) — [`polish.md`](./polish.md) |
+| Search in the header | **Implemented** on 7 Sep 2026 — [`search-bar.md`](./search-bar.md) |
+| Vote arrow and tallies | Proposal only — [`vote-arrow.md`](./vote-arrow.md) |
 
 The verification below is no longer a list to work through by hand; most of it runs.
 `test/migration.mjs` drives a real version-bump upgrade and checks the data survives,
