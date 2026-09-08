@@ -1444,7 +1444,19 @@ var HN = {
                            .append($('<span/>').addClass('hnes-settings-name')
                                                .text('Clear collapsed comments'))
                            .append($('<span/>').addClass('hnes-settings-hint')
-                                               .text('Threads already open keep their state until reloaded')));
+                                               .text('Threads already open keep their state until reloaded'))),
+          // A host permission can only be asked for from a user gesture on an
+          // extension page, which a content script is not, so this row can do
+          // no more than send the reader to the page that can ask.
+          algolia = $('<a/>').attr('href', 'javascript:void(0)')
+                             .addClass('hnes-settings-opt hnes-settings-action')
+                             .append($('<span/>').addClass('hnes-settings-text')
+                               .append($('<span/>').addClass('hnes-settings-name')
+                                                   .text('Theme hn.algolia.com'))
+                               .append($('<span/>').addClass('hnes-settings-hint')
+                                                   .text("Opt in on the extension's options page")));
+
+      algolia.click(function() { chrome.runtime.openOptionsPage(); });
 
       // getBytesInUse rather than reading the store: this runs on every open,
       // and the store it is measuring is the one that gets large.
@@ -1466,7 +1478,8 @@ var HN = {
         });
       });
 
-      return group.append(note).append($('<div/>').addClass('hnes-settings-opts').append(row));
+      return group.append(note)
+                  .append($('<div/>').addClass('hnes-settings-opts').append(row).append(algolia));
     },
 
     formatBytes: function(bytes) {

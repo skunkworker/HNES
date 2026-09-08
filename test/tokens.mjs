@@ -11,7 +11,9 @@ const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const SHOTS = pjoin(ROOT, 'test', 'screenshots');
 
 
-const CSS = readFileSync(pjoin(ROOT, 'style.css'), 'utf8');
+// tokens.css first, exactly as the manifest loads it: style.css only consumes
+// the vars, so injecting it alone would resolve nothing.
+const CSS = ['tokens.css', 'style.css'].map(f => readFileSync(pjoin(ROOT, f), 'utf8')).join('\n');
 
 // What these tokens were before the seed/derive split.
 const BEFORE = {

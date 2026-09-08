@@ -6,54 +6,77 @@
     "manifest_version": 3,
     "minimum_chrome_version": "123",
     "background": {
-      "service_worker": "background.js"
+        "service_worker": "background.js"
     },
     "permissions": [
-      "storage",
-      "unlimitedStorage",
-      "offscreen"
+        "storage",
+        "unlimitedStorage",
+        "offscreen",
+        "scripting"
+    ],
+    "optional_host_permissions": [
+        "https://hn.algolia.com/*"
     ],
     "icons": {
-        "16" : "images/icon-16.png",
-        "48" : "images/icon-48.png",
-        "128" : "images/icon-128.png"
+        "16": "images/icon-16.png",
+        "48": "images/icon-48.png",
+        "128": "images/icon-128.png"
+    },
+    "options_ui": {
+        "page": "options.html",
+        "open_in_tab": true
     },
     "content_scripts": [
-      { "run_at": "document_start",
-        "css": [ "style.css" ],
-        "js": [ "js/modes.js", "js/boot.js" ],
-        "matches": [
-          "https://news.ycombinator.com/*",
-          "https://hackerne.ws/*"]
-      },
-      {
-        "run_at": "document_end",
-        "js": [
-          "js/jquery-3.2.1.min.js",
-          "js/linkify/jquery.linkify-1.0.js",
-          "js/linkify/plugins/jquery.linkify-1.0-twitter.js",
-          "js/hn.js"],
-        "matches": [
-          "https://news.ycombinator.com/*",
-          "https://hackerne.ws/*"]
-      },
-      {
-        "matches": ["https://hckrnews.com/*"],
-        "run_at": "document_end",
-        "js": ["js/jquery-3.2.1.min.js", "js/hn.js"]
-      }
+        {
+            "run_at": "document_start",
+            "css": [
+                "tokens.css",
+                "style.css"
+            ],
+            "js": [
+                "js/modes.js",
+                "js/boot.js"
+            ],
+            "matches": [
+                "https://news.ycombinator.com/*",
+                "https://hackerne.ws/*"
+            ]
+        },
+        {
+            "run_at": "document_end",
+            "js": [
+                "js/jquery-3.2.1.min.js",
+                "js/linkify/jquery.linkify-1.0.js",
+                "js/linkify/plugins/jquery.linkify-1.0-twitter.js",
+                "js/hn.js"
+            ],
+            "matches": [
+                "https://news.ycombinator.com/*",
+                "https://hackerne.ws/*"
+            ]
+        },
+        {
+            "matches": [
+                "https://hckrnews.com/*"
+            ],
+            "run_at": "document_end",
+            "js": [
+                "js/jquery-3.2.1.min.js",
+                "js/hn.js"
+            ]
+        }
     ],
     "web_accessible_resources": [
-      {
-        "resources": [
-          "images/spin.gif",
-          "images/unvote.gif",
-          "images/tag.svg"
-        ],
-        "matches": [
-          "https://news.ycombinator.com/*",
-          "https://hackerne.ws/*"
-        ]
-      }
+        {
+            "resources": [
+                "images/spin.gif",
+                "images/unvote.gif",
+                "images/tag.svg"
+            ],
+            "matches": [
+                "https://news.ycombinator.com/*",
+                "https://hackerne.ws/*"
+            ]
+        }
     ]
 }

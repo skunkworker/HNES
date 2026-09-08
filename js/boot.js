@@ -1,5 +1,7 @@
 /*
- * Runs at document_start, before HN's markup is parsed.
+ * Runs at document_start, before the page's markup is parsed. On Hacker News it
+ * is a manifest content script; on hn.algolia.com it is registered at runtime by
+ * background.js, once the reader has granted that host on the options page.
  *
  * Two jobs, both of which have to happen before first paint:
  *
@@ -17,14 +19,19 @@
  * critical path: it is in flight while HN's markup is parsing, so hn.js's
  * HNESModes.ready() at document_end almost always resolves without waiting.
  *
- * The settings themselves live in modes.js, which the manifest injects just
- * ahead of this file; hn.js and its settings panel read the same one.
+ * The settings themselves live in modes.js, which is injected just ahead of this
+ * file on both hosts; hn.js and its settings panel read the same one.
  */
 (function () {
   var root = document.documentElement;
   if (!root) return;
 
-  root.classList.add('hnes-pending');
+  /* hn.algolia.com is restyled by CSS alone — nothing rewrites its markup, so
+     nothing would ever clear the pending flag and the page would stay hidden.
+     It gets the sheet's own hook instead: algolia.css prefixes every rule with
+     html.hnes-algolia, which also keeps it inert until this script has run. */
+  if (location.hostname === 'hn.algolia.com') root.classList.add('hnes-algolia');
+  else root.classList.add('hnes-pending');
 
   var MODES = globalThis.HNESModes;
   if (!MODES) return;

@@ -11,6 +11,8 @@ A Hacker News extension for Firefox and Chrome which changes lots of things.
 Features
 --------
 * Completely new style, with light and dark themes and five colour palettes
+* Search from the header; it goes to hn.algolia.com, which can wear the same
+  palette if you opt in
 * A settings panel behind the gear in the header
 * Easy access to all pages, and you pick which ones are header tabs
 * Enhanced comment threads
@@ -45,8 +47,15 @@ The gear at the right of the header, in four tabs:
 * **Reading** - new-comment highlighting, hckrnews.com unread counts
 * **Sections** - which of Hacker News' fourteen section pages are header tabs
   and which stay under "more"
-* **Storage** - how much the extension is holding, and a way to clear collapsed
-  comment state, which is the one store that never shrinks
+* **Storage** - how much the extension is holding, a way to clear collapsed
+  comment state, which is the one store that never shrinks, and the link to
+  the options page below
+
+The options page (that link, or the browser's own extension settings) holds one
+switch, "Theme hn.algolia.com". It is off by default. Turning it on asks the
+browser once for that host, and from then on search results take your palette,
+theme and density. Nothing about the page's layout changes, so it still reads
+as the search site. Needs Firefox 128 or later; Chrome is fine.
 
 Everything is stored locally in `chrome.storage.local`; nothing is sent
 anywhere. The Look settings apply immediately, and to any other Hacker News tab
@@ -55,7 +64,9 @@ changing one offers a reload rather than pretending it took effect.
 
 Building and loading
 --------------------
-Manifest V3, and the repo is the extension - there is no build step.
+Manifest V3, and the repo is the extension - there is no build step. The
+colour and spacing tokens live in `tokens.css`, shared by `style.css` (Hacker
+News) and `algolia.css` (hn.algolia.com), so a palette edit lands on both.
 
 * **Chrome** - `chrome://extensions`, turn on Developer mode, Load unpacked, and
   pick this directory.
@@ -69,7 +80,7 @@ tree is Chrome-shaped and `zip.sh` writes the Firefox one into that package.
 
 Tests
 -----
-Seven harnesses drive a real browser with the extension loaded, because almost
+Eight harnesses drive a real browser with the extension loaded, because almost
 everything here is rewriting a page it does not control. `cd test && npm install`,
 then see [test/README.md](test/README.md) for what each one covers and which
 need the network.
@@ -84,7 +95,7 @@ https://chrome.google.com/webstore/detail/bappiabcodbpphnojdiaddhnilfnjmpm
 
 TODO
 ----
-* Put search in a better place + ajax auto-complete
+* Ajax auto-complete for the header search
 * Do something with un-threaded comment lists (e.g. best comments)
 * Make profiles prettier
 * Allow user to highlight friends (ala RES)

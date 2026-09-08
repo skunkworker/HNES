@@ -2,7 +2,7 @@
 
 There is no unit-test suite — almost everything HNES does is rewriting a page it
 does not control, so the useful tests drive a real Chrome with the extension
-loaded. These six cover what manual checking kept missing.
+loaded. These eight cover what manual checking kept missing.
 
 ```sh
 cd test && npm install        # playwright, typescript, two @types packages
@@ -13,11 +13,13 @@ npm run degenerate            # broken markup must not brick the page
 npm run session               # the logged-in pages, which nothing else sees
 npm run controls              # settings panel, persistence, cross-tab, orthogonality
 npm run pages                 # every page type, logged out
+npm run algolia               # hn.algolia.com still has the classes algolia.css hooks
 ```
 
 `typecheck`, `migration`, `tokens`, `degenerate` and `session` need no network
 and are deterministic. `controls` and `pages` hit live Hacker News and can be
-rate limited — see the warning under `pages.mjs`.
+rate limited — see the warning under `pages.mjs`. `algolia` hits live
+hn.algolia.com.
 
 Screenshots land in `test/screenshots/`.
 
@@ -125,7 +127,7 @@ the load-bearing pairs.
 
 Two expected non-failures in its output: `border / bg` is a hairline, not text,
 and `fg-subtle / bg` is scoped to punctuation that carries no information — see
-the comment on `--hnes-fg-subtle` in `style.css`.
+the comment on `--hnes-fg-subtle` in `tokens.css`.
 
 ## degenerate.mjs — broken markup must not brick the page
 
@@ -238,6 +240,30 @@ warm rate limiter you may need to rerun the stragglers later.
 
 That rate limiting is worth keeping in mind rather than working around: a 429
 body with no form is exactly what used to make `/login` throw.
+
+## algolia.mjs — hn.algolia.com still has the classes the sheet hooks
+
+`algolia.css` is a bet on the site's class names — `SearchHeader_search`,
+`Story_title`, `Pagination_item-current` and nineteen more — staying what they
+are. They are not hashed, but a deploy could rename any of them, and the theme
+would then stop applying with no error anywhere. So this loads a live query in a
+plain Chromium and fails by name the first time a hooked class is missing.
+
+No extension is loaded. The host permission is optional, granted from a native
+Chrome bubble Playwright cannot answer, so the script injects `tokens.css` and
+`algolia.css` itself and writes the `hnes-algolia` class and `data-hnes-*`
+attributes `boot.js` would have. Then, for both themes and all five palettes, it
+asserts the header bar is `--hnes-brand`, a title is `--hnes-fg`, the body font
+is the token's, the current pager pill is the brand, and nothing overflows at
+1280 or 375.
+
+The 400ms settle after each palette change is not padding: the site puts
+`transition: color .1s linear` on every link, and a computed-style read on the
+same tick returns the animation's start value.
+
+Two things the live site does that the proposal did not expect: the orange is on
+`.SearchHeader_search`, not `.SearchHeader`, and the site's dark theme only
+exists as `.experimental.dark` — `.dark` alone has no rules.
 
 ## What these do not cover
 

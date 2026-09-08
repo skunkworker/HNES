@@ -2,23 +2,81 @@
  * HNES background worker.
  *
  * Chrome runs this as an MV3 service worker, Firefox as an event page. It has no
- * message handlers any more: content scripts reach chrome.storage.local directly.
- * What is left is one-time maintenance — rescuing the MV2 localStorage store and
- * sweeping expired entries.
+ * message handlers: content scripts reach chrome.storage.local directly, and the
+ * options page asks for its permission itself. Two jobs are left — one-time
+ * maintenance (rescuing the MV2 localStorage store, sweeping expired entries)
+ * and keeping the optional hn.algolia.com content scripts in step with the
+ * permission that allows them.
  */
 
 const MIGRATION_FLAG = 'hnesMigratedFromLocalStorage';
 const OFFSCREEN_URL = 'offscreen.html';
 
+const ALGOLIA_ORIGIN = 'https://hn.algolia.com/*';
+const ALGOLIA_SCRIPT_ID = 'hnes-algolia';
+
 chrome.runtime.onInstalled.addListener(() => {
   migrateLegacyStorage()
     .then(() => expireOldEntries())
     .catch(e => console.error('HNES: maintenance failed', e));
+
+  // An install, an update or a plain reload clears every registered content
+  // script while the permission grant survives, so the grant has to be read
+  // back and the registration rebuilt from it rather than assumed.
+  syncAlgoliaScripts().catch(e => console.error('HNES: algolia sync failed', e));
 });
 
 chrome.runtime.onStartup.addListener(() => {
   expireOldEntries().catch(e => console.error('HNES: expiry sweep failed', e));
 });
+
+chrome.permissions.onAdded.addListener(permissions => {
+  if (!grantsAlgolia(permissions)) return;
+  registerAlgoliaScripts().catch(e => console.error('HNES: algolia register failed', e));
+});
+
+chrome.permissions.onRemoved.addListener(permissions => {
+  if (!grantsAlgolia(permissions)) return;
+  unregisterAlgoliaScripts().catch(e => console.error('HNES: algolia unregister failed', e));
+});
+
+function grantsAlgolia(permissions) {
+  return !!(permissions && permissions.origins && permissions.origins.includes(ALGOLIA_ORIGIN));
+}
+
+/*
+ * hn.algolia.com is styled by CSS alone — no hn.js, no jQuery — so the pair
+ * that runs is the same document_start pair Hacker News gets: modes.js for the
+ * stored settings and boot.js to paint them onto <html> before first paint.
+ */
+async function registerAlgoliaScripts() {
+  /** @type {chrome.scripting.RegisteredContentScript} */
+  const script = {
+    id: ALGOLIA_SCRIPT_ID,
+    matches: [ALGOLIA_ORIGIN],
+    css: ['tokens.css', 'algolia.css'],
+    js: ['js/modes.js', 'js/boot.js'],
+    runAt: 'document_start',
+    persistAcrossSessions: true
+  };
+
+  // registerContentScripts throws on a duplicate id, and both the onAdded
+  // listener and onInstalled can reach here for the same grant.
+  const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [ALGOLIA_SCRIPT_ID] });
+  if (existing.length) await chrome.scripting.updateContentScripts([script]);
+  else await chrome.scripting.registerContentScripts([script]);
+}
+
+async function unregisterAlgoliaScripts() {
+  const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [ALGOLIA_SCRIPT_ID] });
+  if (existing.length) await chrome.scripting.unregisterContentScripts({ ids: [ALGOLIA_SCRIPT_ID] });
+}
+
+async function syncAlgoliaScripts() {
+  const granted = await chrome.permissions.contains({ origins: [ALGOLIA_ORIGIN] });
+  if (granted) await registerAlgoliaScripts();
+  else await unregisterAlgoliaScripts();
+}
 
 /*
  * Everything the extension persisted before v2 — user tags, upvote counts, per-thread

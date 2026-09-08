@@ -1,0 +1,118 @@
+<!doctype html>
+<!--
+  The one thing the settings panel on Hacker News cannot do. A host permission
+  has to be asked for from a user gesture on an extension page, so the switch
+  for hn.algolia.com lives here and the panel's Storage tab links to it.
+
+  tokens.css is the same file both content scripts load, so this page wears the
+  reader's palette, theme and density without restating a single colour.
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>HNES options</title>
+  <link rel="stylesheet" href="tokens.css">
+  <style>
+    body {
+      margin: 0;
+      padding: var(--hnes-gap-5);
+      background: var(--hnes-bg);
+      color: var(--hnes-fg);
+      font-family: var(--hnes-font);
+      font-size: var(--hnes-size);
+      line-height: var(--hnes-leading);
+    }
+
+    main {
+      max-width: 34rem;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: var(--hnes-size-title);
+      margin: 0 0 var(--hnes-gap-4);
+    }
+
+    .opt {
+      display: flex;
+      align-items: center;
+      gap: var(--hnes-gap-3);
+      padding: var(--hnes-gap-3) var(--hnes-gap-4);
+      background: var(--hnes-surface);
+      border: 1px solid var(--hnes-border);
+      border-radius: var(--hnes-radius);
+      cursor: pointer;
+    }
+
+    .opt:focus-visible {
+      outline: 2px solid var(--hnes-focus-ring);
+      outline-offset: 2px;
+    }
+
+    .text { flex: 1; }
+    .name { display: block; }
+
+    .hint {
+      display: block;
+      color: var(--hnes-fg-muted);
+      font-size: var(--hnes-size-sm);
+    }
+
+    /* A track and a knob. The knob is drawn in the muted ink rather than the
+       page background: on the dark palettes the two are near enough to the same
+       colour that a background-coloured knob disappears into its own track. */
+    .switch {
+      flex: none;
+      width: 2.2em;
+      height: 1.2em;
+      border-radius: var(--hnes-radius-pill);
+      background: var(--hnes-border);
+      position: relative;
+      transition: background 120ms ease;
+    }
+
+    .switch::after {
+      content: '';
+      position: absolute;
+      top: 0.15em;
+      left: 0.15em;
+      width: 0.9em;
+      height: 0.9em;
+      border-radius: 50%;
+      background: var(--hnes-fg-muted);
+      transition: transform 120ms ease, background 120ms ease;
+    }
+
+    [aria-checked="true"] .switch { background: var(--hnes-brand); }
+    [aria-checked="true"] .switch::after {
+      transform: translateX(1em);
+      background: var(--hnes-header-ink);
+    }
+
+    .note {
+      margin-top: var(--hnes-gap-3);
+      color: var(--hnes-fg-muted);
+      font-size: var(--hnes-size-sm);
+      min-height: 1.4em;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Hacker News Enhancement Suite</h1>
+
+    <div class="opt" id="algolia" role="switch" aria-checked="false" tabindex="0">
+      <span class="text">
+        <span class="name">Theme hn.algolia.com</span>
+        <span class="hint">Search results take the palette you chose for Hacker News</span>
+      </span>
+      <i class="switch"></i>
+    </div>
+
+    <div class="note" id="note" role="status"></div>
+  </main>
+
+  <script src="js/modes.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,269 @@
+/*
+ * HNES on hn.algolia.com.
+ *
+ * The extension's own header search sends every query here, so this is the one
+ * page a reader reaches from an HNES control that HNES did not style. It loads
+ * after tokens.css and consumes those tokens only — no colour is written down
+ * here, so a palette edit lands on both sites at once.
+ *
+ * RESTYLE, NEVER RESTRUCTURE. The page is a React app that re-renders the whole
+ * result list on every keystroke. A DOM rewrite of the kind js/hn.js does to HN
+ * would be undone before the reader finished typing, so this file changes
+ * colour, type and control shape and touches no layout the site owns.
+ *
+ * WHY EVERY RULE CARRIES `html.hnes-algolia:root`. boot.js puts `hnes-algolia`
+ * on <html> here instead of `hnes-pending` (nothing rewrites the page, so there
+ * is nothing to reveal). The class is the host guard; `:root` is a pseudo-class
+ * on an element that is already the root, so it asks for nothing new and buys
+ * one more unit of specificity. That unit is what out-specifies the site's own
+ * `.experimental.dark .Foo` theme rules (0,3,1) with our `.Foo` rules (0,3,2),
+ * so the tokens win whichever style and theme the site's own settings are on.
+ * Nothing here needs !important except the two match-highlight properties, and
+ * only because the site declares those !important itself.
+ *
+ * The site's `.dark` class alone carries no rules — its dark theme is written
+ * `.experimental.dark`, i.e. it only exists inside the "experimental" style.
+ * Nothing sets color-scheme below the root either, so tokens.css's
+ * `:root[data-hnes-theme]` rules are the only thing light-dark() answers to.
+ *
+ * LEFT AS THE SITE DREW IT, so it still reads as the search site and not the
+ * front page: the header's logo, "Search Hacker News" wordmark, full-width
+ * field and Algolia credit; the Stories / Popularity / All time filter strip;
+ * result rows that carry the full URL and no rank, no vote arrow, no zebra;
+ * the " | " separators in the meta line; the match marks, still marks. Every
+ * media query, width and flex rule on the page is the site's.
+ */
+
+
+/* ---------------------------------------------------------------------------
+   Page ground and type
+   `html,body` in the site sheet weighs (0,0,2) and `.experimental.light` /
+   `.experimental.dark` paint the root <div>; both are covered here.
+   --------------------------------------------------------------------------- */
+html.hnes-algolia:root,
+html.hnes-algolia:root body,
+html.hnes-algolia:root #root > div,
+html.hnes-algolia:root .SearchResults,
+html.hnes-algolia:root .Layout {
+  background-color: var(--hnes-bg);
+  color: var(--hnes-fg);
+  font-family: var(--hnes-font);
+}
+html.hnes-algolia:root body { font-size: var(--hnes-size); }
+html.hnes-algolia:root a { color: var(--hnes-link); }
+html.hnes-algolia:root a:hover { color: var(--hnes-link-hover); }
+html.hnes-algolia:root ::selection { background-color: var(--hnes-selection); }
+
+
+/* ---------------------------------------------------------------------------
+   Header — the brand bar. Layout, logo, wordmark and Algolia credit untouched.
+   The orange is on .SearchHeader_search, not on .SearchHeader; both are painted
+   so the bar is one colour edge to edge whatever the container width resolves.
+   --------------------------------------------------------------------------- */
+html.hnes-algolia:root .SearchHeader,
+html.hnes-algolia:root .SearchHeader_search {
+  background-color: var(--hnes-brand);
+}
+html.hnes-algolia:root .SearchHeader_label,
+html.hnes-algolia:root .SearchHeader_back,
+html.hnes-algolia:root .SearchHeader_settings a {
+  color: var(--hnes-header-ink);
+}
+html.hnes-algolia:root .SearchHeader_settings a:hover {
+  color: var(--hnes-orange-ink);
+  background-color: var(--hnes-header-hover);
+  border-radius: var(--hnes-radius);
+}
+
+/* The field: the pill, surface and ring the extension's own header search uses. */
+html.hnes-algolia:root .SearchHeader .SearchInput {
+  background-color: var(--hnes-surface);
+  color: var(--hnes-fg);
+  border: 1px solid var(--hnes-border);
+  border-radius: var(--hnes-radius-pill);
+  font-family: inherit;
+  font-size: var(--hnes-size-sm);
+}
+html.hnes-algolia:root .SearchHeader .SearchInput::placeholder { color: var(--hnes-fg-subtle); }
+html.hnes-algolia:root .SearchHeader .SearchInput:focus {
+  outline: var(--hnes-focus-ring);
+  outline-offset: 1px;
+  border-color: var(--hnes-orange);
+}
+html.hnes-algolia:root .SearchHeader .SearchIcon { color: var(--hnes-orange); }
+/* Sits inside the field, not on the bar, so it takes field ink and not header ink. */
+html.hnes-algolia:root .SearchHeader .PoweredBy { color: var(--hnes-fg-subtle); }
+
+
+/* ---------------------------------------------------------------------------
+   Filter strip — Stories / Popularity / All time. HN has no such row; it keeps
+   its own shape and takes a surface plate so it separates from the results.
+   --------------------------------------------------------------------------- */
+html.hnes-algolia:root .SearchFilters {
+  background-color: var(--hnes-surface);
+  color: var(--hnes-fg-muted);
+  font-size: var(--hnes-size-xs);
+  border-bottom: 1px solid var(--hnes-border);
+}
+html.hnes-algolia:root .SearchFilters_engineProcessingTime { color: var(--hnes-fg-muted); }
+html.hnes-algolia:root .SearchFilters_meta svg { color: var(--hnes-fg-subtle); }
+html.hnes-algolia:root .SearchFilters_menuButton,
+html.hnes-algolia:root .Dropdown_label {
+  background-color: var(--hnes-surface-alt);
+  color: var(--hnes-fg);
+  border: 1px solid var(--hnes-border);
+  border-radius: var(--hnes-radius);
+  font-family: inherit;
+  font-size: var(--hnes-size-sm);
+}
+html.hnes-algolia:root .SearchFilters_menuButton:hover,
+html.hnes-algolia:root .Dropdown_label:hover { background-color: var(--hnes-surface-hi); }
+
+html.hnes-algolia:root .Dropdown_list,
+html.hnes-algolia:root .SearchFilters_menu {
+  background-color: var(--hnes-surface);
+  color: var(--hnes-fg);
+  border-color: var(--hnes-border);
+  border-radius: var(--hnes-radius);
+  box-shadow: var(--hnes-shadow-menu);
+}
+html.hnes-algolia:root .Dropdown_list li,
+html.hnes-algolia:root .Dropdown_list li button,
+html.hnes-algolia:root .SearchFilters_menu li a {
+  background-color: transparent;
+  color: var(--hnes-fg);
+  font-family: inherit;
+  font-size: var(--hnes-size-sm);
+}
+html.hnes-algolia:root .Dropdown_list li:not(:last-child),
+html.hnes-algolia:root .SearchFilters_menu ul:not(:last-child) { border-bottom-color: var(--hnes-border); }
+html.hnes-algolia:root .Dropdown_list li:hover,
+html.hnes-algolia:root .SearchFilters_menu li a:hover { color: var(--hnes-orange); }
+html.hnes-algolia:root .SearchFilters_menu li a.active { background-color: var(--hnes-surface-hi); }
+/* The list's callout arrow is two stacked borders: the outer is the rule, the
+   inner is the fill. Retinting both is what keeps the arrow from staying white. */
+html.hnes-algolia:root .Dropdown_list:before { border-color: var(--hnes-border) transparent; }
+html.hnes-algolia:root .Dropdown_list:after { border-color: var(--hnes-surface) transparent; }
+
+
+/* ---------------------------------------------------------------------------
+   Result rows — no rank, no vote arrow, no zebra, and the full URL stays.
+   Density arrives through the row tokens alone: --hnes-row-pad-y sets the
+   rhythm and --hnes-row-rule is transparent until the flow density turns it on,
+   the same inset-shadow rule style.css draws on HN's index rows.
+   --------------------------------------------------------------------------- */
+html.hnes-algolia:root .Story {
+  padding-top: var(--hnes-row-pad-y);
+  padding-bottom: var(--hnes-row-pad-y);
+  font-size: var(--hnes-size);
+  box-shadow: inset 0 -1px 0 var(--hnes-row-rule);
+  background-color: transparent;
+}
+html.hnes-algolia:root .Story_title a { color: var(--hnes-fg); font-size: var(--hnes-row-title); }
+html.hnes-algolia:root .Story_title a:visited { color: var(--hnes-visited); }
+html.hnes-algolia:root .Story_title .Story_link { color: var(--hnes-fg-muted); font-size: var(--hnes-size-sm); }
+html.hnes-algolia:root .Story_meta,
+html.hnes-algolia:root .Story_meta a { color: var(--hnes-fg-muted); font-size: var(--hnes-size-xs); }
+html.hnes-algolia:root .Story_meta a:hover { color: var(--hnes-fg); }
+html.hnes-algolia:root .Story_separator { color: var(--hnes-fg-subtle); }
+
+/* Comment hits get the comment body's measure and leading, as on HN. */
+html.hnes-algolia:root .Story_comment {
+  color: var(--hnes-fg);
+  font-size: var(--hnes-size-comment);
+  line-height: var(--hnes-com-lead);
+  max-width: var(--hnes-measure);
+  overflow-wrap: anywhere;
+}
+html.hnes-algolia:root .Story_comment p { margin: var(--hnes-com-para) 0 0; }
+html.hnes-algolia:root .Story_comment a { color: var(--hnes-link); text-decoration: underline; }
+
+/* Still a highlight, in the palette's wash. The only !important in the file:
+   the site declares both of these properties !important itself, and specificity
+   cannot answer that. */
+html.hnes-algolia:root .Story em {
+  background-color: var(--hnes-selection) !important;
+  color: var(--hnes-fg) !important;
+}
+
+
+/* ---------------------------------------------------------------------------
+   Pagination — the extension's pill; the current page takes the active pill.
+   --------------------------------------------------------------------------- */
+html.hnes-algolia:root .Pagination { background-color: transparent; }
+html.hnes-algolia:root .Pagination_item button {
+  min-width: calc(var(--hnes-control) + 8px);
+  height: var(--hnes-control);
+  background-color: var(--hnes-surface);
+  color: var(--hnes-fg-muted);
+  border: 1px solid var(--hnes-border);
+  border-radius: var(--hnes-radius-pill);
+  font-family: inherit;
+  font-size: var(--hnes-size-sm);
+  transition: background-color .12s ease, color .12s ease;
+}
+html.hnes-algolia:root .Pagination_item button:hover {
+  background-color: var(--hnes-surface-hi);
+  color: var(--hnes-fg);
+}
+html.hnes-algolia:root .Pagination_item-current button {
+  background-color: var(--hnes-brand);
+  color: var(--hnes-orange-ink);
+  border-color: transparent;
+  font-weight: 700;
+}
+html.hnes-algolia:root .Pagination_item button:focus-visible {
+  outline: var(--hnes-focus-ring);
+  outline-offset: 1px;
+}
+
+
+/* ---------------------------------------------------------------------------
+   Footer — HN's .yclinks. The site draws these in #f6f6ef, which on its own
+   white page ground is all but invisible; muted ink is legible in every palette.
+   --------------------------------------------------------------------------- */
+html.hnes-algolia:root .Footer_list li,
+html.hnes-algolia:root .Footer_list a { color: var(--hnes-fg-muted); font-size: var(--hnes-size-xs); }
+html.hnes-algolia:root .Footer_list a:hover { color: var(--hnes-fg); }
+
+
+/* ---------------------------------------------------------------------------
+   The site's own settings page — the submit-form rules and nothing more. Its
+   selects ship as #fbfaf5 on a near-white plate, so this is also what makes
+   them readable.
+   --------------------------------------------------------------------------- */
+html.hnes-algolia:root .Settings { background-color: var(--hnes-bg); font-size: var(--hnes-size-sm); }
+html.hnes-algolia:root .Settings h2 { color: var(--hnes-fg); border-bottom-color: var(--hnes-border); }
+html.hnes-algolia:root .Settings label,
+html.hnes-algolia:root .Settings_inputContainer { color: var(--hnes-fg-muted); }
+html.hnes-algolia:root .Settings select,
+html.hnes-algolia:root .Settings input,
+html.hnes-algolia:root .Settings input#login {
+  background-color: var(--hnes-surface);
+  color: var(--hnes-fg);
+  border: 1px solid var(--hnes-border);
+  border-radius: var(--hnes-radius);
+  padding: 5px var(--hnes-gap-2);
+  font-family: inherit;
+  font-size: var(--hnes-size-sm);
+}
+html.hnes-algolia:root .Settings select:focus,
+html.hnes-algolia:root .Settings input:focus {
+  outline: var(--hnes-focus-ring);
+  outline-offset: 1px;
+  border-color: var(--hnes-orange);
+}
+html.hnes-algolia:root .Settings_actions button {
+  background-color: var(--hnes-brand);
+  color: var(--hnes-orange-ink);
+  border: 1px solid transparent;
+  border-radius: var(--hnes-radius);
+  font-family: inherit;
+  font-size: var(--hnes-size-sm);
+  font-weight: 600;
+}
+html.hnes-algolia:root .Settings_actions button:hover:not(:disabled) { filter: brightness(1.08); }
+
+@media (prefers-reduced-motion: reduce) {
+  html.hnes-algolia:root .Pagination_item button { transition: none; }
+}

@@ -10,7 +10,8 @@
     "degenerate": "node degenerate.mjs",
     "session": "node session.mjs",
     "controls": "node controls.mjs",
-    "pages": "node pages.mjs"
+    "pages": "node pages.mjs",
+    "algolia": "node algolia.mjs"
   },
   "devDependencies": {
     "@types/chrome": "^0.2.6",
