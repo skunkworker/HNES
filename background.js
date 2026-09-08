@@ -1,12 +1,13 @@
 /*
  * HNES background worker.
  *
- * Chrome runs this as an MV3 service worker, Firefox as an event page. It has no
- * message handlers: content scripts reach chrome.storage.local directly, and the
- * options page asks for its permission itself. Two jobs are left — one-time
- * maintenance (rescuing the MV2 localStorage store, sweeping expired entries)
- * and keeping the optional hn.algolia.com content scripts in step with the
- * permission that allows them.
+ * Chrome runs this as an MV3 service worker, Firefox as an event page. Content
+ * scripts reach chrome.storage.local directly and the options page asks for its
+ * permission itself, so the one message it answers is "open the options page":
+ * a content script can neither call openOptionsPage nor link to an extension
+ * page that is not web-accessible. The rest is one-time maintenance (rescuing
+ * the MV2 localStorage store, sweeping expired entries) and keeping the optional
+ * hn.algolia.com content scripts in step with the permission that allows them.
  */
 
 const MIGRATION_FLAG = 'hnesMigratedFromLocalStorage';
@@ -28,6 +29,10 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.runtime.onStartup.addListener(() => {
   expireOldEntries().catch(e => console.error('HNES: expiry sweep failed', e));
+});
+
+chrome.runtime.onMessage.addListener(message => {
+  if (message && message.open === 'options') chrome.runtime.openOptionsPage();
 });
 
 chrome.permissions.onAdded.addListener(permissions => {

@@ -1447,7 +1447,10 @@ var HN = {
                                                .text('Threads already open keep their state until reloaded'))),
           // A host permission can only be asked for from a user gesture on an
           // extension page, which a content script is not, so this row can do
-          // no more than send the reader to the page that can ask.
+          // no more than send the reader to the page that can ask. Via the
+          // worker: openOptionsPage does not exist in content scripts, and a
+          // web page may not navigate to an extension page that is not
+          // web-accessible.
           algolia = $('<a/>').attr('href', 'javascript:void(0)')
                              .addClass('hnes-settings-opt hnes-settings-action')
                              .append($('<span/>').addClass('hnes-settings-text')
@@ -1456,7 +1459,7 @@ var HN = {
                                .append($('<span/>').addClass('hnes-settings-hint')
                                                    .text("Opt in on the extension's options page")));
 
-      algolia.click(function() { chrome.runtime.openOptionsPage(); });
+      algolia.click(function() { chrome.runtime.sendMessage({ open: 'options' }); });
 
       // getBytesInUse rather than reading the store: this runs on every open,
       // and the store it is measuring is the one that gets large.
