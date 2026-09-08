@@ -40,7 +40,9 @@ const BODY = `<html><body><center><table id="hnmain"><tbody>
 <span class="score">40 points</span> by <a href="user?id=bob" class="hnuser">bob</a>
 <span class="age"><a href="item?id=1">2 hours ago</a></span> | <a href="item?id=1">3&nbsp;comments</a>
 </span></td></tr><tr class="spacer"></tr>
-</tbody></table></td></tr></tbody></table></center></body></html>`;
+</tbody></table></td></tr></tbody></table>
+<br><br><form method="get" action="//hn.algolia.com/">Search: <input type="text" name="q" size="17"></form>
+</center></body></html>`;
 
 const results = [];
 const check = (name, ok, note = '') => results.push({ name, ok: !!ok, note });
@@ -81,14 +83,17 @@ for (const { path, label } of PAGES) {
   const state = await page.evaluate(() => ({
     pending: document.documentElement.classList.contains('hnes-pending'),
     gear: document.querySelectorAll('.hnes-settings-host > a').length,
+    search: document.querySelectorAll('.hnes-search').length,
+    footer: document.querySelectorAll('form[action*="algolia"]:not(.hnes-search)').length,
     active: document.querySelector('.new-active-link')?.textContent ?? null,
   }));
 
   // `pending` is the tell for a throw: reveal() never ran and only the
   // stylesheet's failsafe animation is holding the page up.
   check(`${path} completes`,
-    !state.pending && state.gear === 1 && !errors.length,
-    errors.length ? errors.join(' ') : state.pending ? 'never revealed' : '');
+    !state.pending && state.gear === 1 && state.search === 1 && !state.footer && !errors.length,
+    errors.length ? errors.join(' ') : state.pending ? 'never revealed'
+      : `${state.search} search, ${state.footer} footer form`);
   check(`${path} names the page`, state.active === label, state.active);
 }
 
@@ -113,6 +118,29 @@ check('user menu stacks vertically',
   menu.lefts.length === 1 && menu.tops.every((t, i) => i === 0 || t > menu.tops[i - 1]),
   `lefts ${menu.lefts.join(',')} tops ${menu.tops.join(',')}`);
 await page.screenshot({ path: `${SHOTS}/08-user-menu.png` });
+
+// Search: `/` opens it and closes the user menu still open from above; Escape
+// shuts it and hands focus back to the icon.
+await page.keyboard.press('/');
+await page.waitForTimeout(200);
+const opened = await page.evaluate(() => ({
+  open: document.querySelector('.hnes-search')?.classList.contains('hnes-search-open'),
+  focused: document.activeElement?.getAttribute('name'),
+  value: document.querySelector('.hnes-search input')?.value,
+  menu: getComputedStyle(document.querySelector('#user-hidden')).display,
+}));
+check('/ opens search', opened.open && opened.focused === 'q' && opened.value === '',
+  `open ${opened.open}, focus on ${opened.focused}, value "${opened.value}"`);
+check('search closes the user menu', opened.menu === 'none', opened.menu);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
+const shut = await page.evaluate(() => ({
+  open: document.querySelector('.hnes-search')?.classList.contains('hnes-search-open'),
+  focused: document.activeElement?.className,
+}));
+check('Escape shuts search', !shut.open && shut.focused === 'hnes-search-toggle',
+  `open ${shut.open}, focus on ${shut.focused}`);
+await page.screenshot({ path: `${SHOTS}/09-search-shut.png` });
 
 await ctx.close();
 

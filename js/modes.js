@@ -65,7 +65,9 @@
     { id: 'p', label: 'Open the comments' },
     { id: 'c', label: 'Open the comments in a new tab' },
     { id: 'b', label: 'Open both in new tabs' },
-    { id: 'h', label: 'Open these settings' }
+    { id: 'h', label: 'Open these settings' },
+    { id: '/', label: 'Search' },
+    { id: '?', label: 'Show this list' }
   ];
 
   var ON_OFF = [{ id: 'on' }, { id: 'off' }];

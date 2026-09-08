@@ -232,6 +232,8 @@
    * rather than the raw gaps, so a view mode is a token block rather than a
    * hunt through the rules below. Defaults here are the "comfortable" mode.
    */
+  --hnes-focus-ring:  2px solid var(--hnes-orange);
+
   --hnes-row-pad-y:   var(--hnes-gap-2);  /* index row, top and bottom */
   --hnes-row-title:   var(--hnes-size-title);
   --hnes-com-pad-y:   var(--hnes-gap-2);  /* comment card */
@@ -257,8 +259,9 @@
   /* elevation */
   --hnes-shadow-menu: light-dark(0 8px 24px rgba(0,0,0,.16), 0 8px 24px rgba(0,0,0,.6));
 
-  /* index gutter columns */
-  --hnes-col-comments: 76px;
+  /* index gutter columns. The comment column holds `999 / 9999` — the unread
+     count plus the total — which needs ~81px at 15px semibold tabular. */
+  --hnes-col-comments: 92px;
   --hnes-col-score:    60px;
 
 }
@@ -590,6 +593,7 @@ html body #header a:hover { color: var(--hnes-orange-ink); }
    panel. */
 html body #header .pagetop > a,
 html body #header td:nth-child(3) a:not(.nav-drop-down a),
+html body #header .hnes-search-toggle,
 html body .nav-links > span > a,
 html body .nav-links > span > a:link,
 html body .nav-links > span > a:visited {
@@ -600,7 +604,11 @@ html body .nav-links > span > a:visited {
   border-radius: var(--hnes-radius-pill);
   transition: background-color .12s ease, color .12s ease;
 }
-html body #header td:nth-child(3) a:not(.nav-drop-down a):hover {
+/* Not while active: the filled pill is the open state's whole signal, and the
+   tint laid over it dimmed the glyph to nothing. */
+html body #header td:nth-child(3) a:not(.nav-drop-down a):not(.active):hover,
+html body #header .hnes-search-toggle:not(.active):hover {
+  color: var(--hnes-orange-ink);
   background: var(--hnes-header-hover);
 }
 
@@ -641,6 +649,7 @@ html body .more-arrow:hover > a {
    trigger like the other two even though it wants no caret. */
 html body .nav-links > span > a.nav-active-link,
 html body .hnes-settings-host > a.active,
+html body #header .hnes-search-toggle.active,
 html body .more-arrow > a.active {
   color: var(--hnes-brand) !important;
   background: var(--hnes-orange-ink);
@@ -721,14 +730,69 @@ html body .nav-drop-down a:hover {
 
 .hnes-settings-host { position: relative; }
 
-/* Two classes deep on purpose: the pill rule above reaches this anchor through
+/* Two classes deep on purpose: the pill rule above reaches the gear through
    `#header td:nth-child(3) a`, which out-specifies anything shorter. The pill
    pads for a 13.5px cap height, and a 15px square box wants less. */
-html body #header .hnes-settings-host > a.hnes-gear {
+html body #header .hnes-settings-host > a.hnes-gear,
+html body #header .hnes-search-toggle {
   padding: 6px 10px;
   line-height: 0;
 }
 .hnes-settings-host svg { vertical-align: middle; }
+
+/* ---------------------------------------------------------------------------
+   Search
+
+   An icon left of the gear; open, a field grown out to the icon's left. HN's
+   own form sat at the foot of the page. Open and shut are one class on the
+   form, so the width and its motion are CSS alone.
+   --------------------------------------------------------------------------- */
+
+.hnes-search {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin: 0;
+}
+/* A <button>: the pill, hover and active rules above list it, but the
+   header's link colour rule cannot reach it. */
+html body #header .hnes-search-toggle {
+  color: var(--hnes-header-ink);
+  cursor: pointer;
+}
+html body #header .hnes-search input {
+  appearance: none;
+  box-sizing: border-box;
+  width: 0;
+  height: var(--hnes-control);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--hnes-radius-pill);
+  background: var(--hnes-header-hover);
+  color: var(--hnes-header-ink);
+  font-family: inherit;
+  font-size: var(--hnes-size-sm);
+  /* Shut, it is out of the tab order as well as out of sight. The delay on
+     visibility holds it on screen while the width runs down. */
+  visibility: hidden;
+  transition: width .12s ease, visibility 0s .12s;
+}
+html body #header .hnes-search-open input {
+  width: 220px;
+  /* Room on the left too: what sits there is the karma or the login pill,
+     and a field flush against text reads as clipping it. */
+  margin: 0 var(--hnes-gap-1) 0 var(--hnes-gap-2);
+  padding: 0 var(--hnes-gap-3);
+  visibility: visible;
+  transition: width .12s ease;
+}
+.hnes-search input::placeholder { color: var(--hnes-header-ink-dim); }
+.hnes-search input::-webkit-search-decoration,
+.hnes-search input::-webkit-search-cancel-button { -webkit-appearance: none; }
+@media (prefers-reduced-motion: reduce) {
+  html body #header .hnes-search input { transition: none; }
+}
 
 .hnes-settings {
   right: 0;
@@ -780,14 +844,22 @@ html body #header .hnes-settings-host > a.hnes-gear {
   padding-bottom: var(--hnes-gap-2);
   border-bottom: 1px solid var(--hnes-border);
 }
-html body .hnes-settings button.hnes-settings-tab {
-  flex: 1 1 0;
-  min-width: 0;
+/* Every <button> the extension draws starts from no UA chrome; the rest of
+   the stylesheet assumes anchor defaults. */
+html body .hnes-settings button.hnes-settings-tab,
+.hnes-search-toggle,
+.hnes-comment .collapser,
+.hnes-comment .unvoter,
+.hnes-tag {
   appearance: none;
-  margin: 0;
   border: 0;
   background: none;
   font: inherit;
+}
+html body .hnes-settings button.hnes-settings-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
   font-size: var(--hnes-size-xs);
   line-height: 1.2;
   color: var(--hnes-fg-muted);
@@ -1014,6 +1086,55 @@ html body .hnes-settings .hnes-settings-reload a.hnes-settings-action {
   color: var(--hnes-fg-muted);
 }
 
+/* The key/label table shared by the settings panel's Keyboard group and the
+   `?` overlay — one grid, so the two can never format the list differently. */
+.hnes-keys {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--hnes-gap-1) var(--hnes-gap-2);
+  padding: var(--hnes-gap-1) var(--hnes-gap-2) var(--hnes-gap-2);
+}
+.hnes-keys kbd {
+  justify-self: start;
+  padding: 1px 6px;
+  border: 1px solid var(--hnes-border);
+  border-radius: var(--hnes-radius);
+  background: var(--hnes-surface-alt);
+  font-family: var(--hnes-font);
+  font-size: var(--hnes-size-xs);
+  color: var(--hnes-fg-muted);
+}
+.hnes-keys span { color: var(--hnes-fg); }
+
+/*
+ * The `?` overlay. Same surface the settings panel uses (border, radius,
+ * shadow), centred over a dimming backdrop rather than hung off a header
+ * cell, since it can be opened from anywhere on the page.
+ */
+.hnes-keyhelp-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, .35);
+}
+.hnes-keyhelp {
+  width: min(300px, 90vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: var(--hnes-gap-2);
+  background: var(--hnes-surface);
+  border: 1px solid var(--hnes-border);
+  border-radius: var(--hnes-radius);
+  box-shadow: var(--hnes-shadow-menu);
+  font-family: var(--hnes-font);
+  font-size: var(--hnes-size-sm);
+  color: var(--hnes-fg);
+}
+
 .mourning { border-top: 5px solid var(--hnes-fg-strong); }
 
 
@@ -1059,11 +1180,34 @@ html body .hnes-settings .hnes-settings-reload a.hnes-settings-action {
   text-align: right;
 }
 #index-body #content table td.title { width: auto; }
-/* Without a cap the vote column absorbs all the slack and squeezes the title,
-   which only shows up once the viewport is narrow. */
-#index-body #content table td.votelinks {
+/*
+ * Without a cap the vote column absorbs all the slack and squeezes the title,
+ * which only shows up once the viewport is narrow.
+ *
+ * HN sets valign="top" here and never sets it on the title cell, which the
+ * browser then centres — but the title (with its subline on a phone) is
+ * always the tallest thing in the row, so centring never actually moves it:
+ * its first line still starts at the row's top. The arrow, pinned there too,
+ * ends up flush with that top edge instead of level with the text. Pushing it
+ * down by half of what the first line's box has left over the arrow's own
+ * 10px lands the two centres together, on every breakpoint, since it never
+ * references the row's full (possibly wrapped) height.
+ */
+#index-body #content table td.votelinks,
+#item-body .item-header td.votelinks {
   width: 22px;
   max-width: 22px;
+}
+#index-body #content table td.votelinks {
+  padding-top: calc(var(--hnes-row-pad-y) + (var(--hnes-row-title) * 1.35 - 10px) / 2);
+}
+/* Same fix for the one story row on an item page, which HN builds outside
+   #index-body and which keeps the full title size rather than the row size.
+   Both cells are pinned to a zero top padding here — item pages never got the
+   index rows' shared padding-top, so votelinks starts from a known baseline
+   rather than whatever the browser's own cell padding happened to leave. */
+#item-body .item-header td.votelinks {
+  padding-top: calc((var(--hnes-size-title) * 1.35 - 10px) / 2);
 }
 
 /* Pin the tallies to the top so multi-line titles don't drag them down. */
@@ -1079,6 +1223,10 @@ html body .hnes-settings .hnes-settings-reload a.hnes-settings-action {
   padding-top: calc(var(--hnes-row-pad-y) + 1px);
   padding-right: var(--hnes-gap-1);
   font-variant-numeric: tabular-nums;
+  /* The box is out of flow, so a wrapped tally can't grow the row — the second
+     line lands on the row below instead. Keep it on one line; the column above
+     is sized to hold the widest string. */
+  white-space: nowrap;
 }
 .comments { left: 0; }
 /* Fallback when the comment count can't be parsed out of the row. */
@@ -1098,13 +1246,17 @@ span.newcomments {
 
 /* Out-specifies the `html body .title` block below, so the index title tracks
    the view mode while item pages keep the full title size. */
-#index-body .title {
+#index-body .title,
+#item-body .item-header .title {
   padding-left: var(--hnes-gap-3);
   padding-right: 18px;
-  font-size: var(--hnes-row-title) !important;
 }
+#index-body .title { font-size: var(--hnes-row-title) !important; }
 .title:first-child { padding-left: 5px !important; }
 body#item-body .title { width: 100%; }
+/* Item pages fall outside #index-body, so the title here never got the gap
+   above — it sat flush against the arrow with no space at all. */
+#item-body .item-header .title { padding-top: 0; }
 
 html body .title {
   color: var(--hnes-fg);
@@ -1127,8 +1279,22 @@ td #more.link-highlight {
   padding: 5px 18px 5px var(--hnes-gap-2) !important;
 }
 
+/* Read as the list's last row instead of a stray link below it: a background
+   that doesn't depend on zebra parity landing on this row by chance, and the
+   row's own padding moved onto the link so the whole row is the tap target,
+   not just the word. Untouched in the .link-highlight state, which keeps its
+   own padding above. */
+#index-body #content tr:has(> #more) {
+  background-color: var(--hnes-row-zebra) !important;
+}
 #more { text-align: left !important; }
-#more a { color: var(--hnes-orange); }
+#more:not(.link-highlight) { padding: 0 !important; }
+#more a {
+  display: block;
+  padding: var(--hnes-row-pad-y) 18px var(--hnes-row-pad-y) var(--hnes-gap-3);
+  color: var(--hnes-orange);
+}
+#more.link-highlight a { padding: 0; }
 #more a:hover { text-decoration: underline; }
 
 .blurb {
@@ -1159,6 +1325,14 @@ html body .submitter {
   font-family: var(--hnes-font);
   font-size: var(--hnes-size-xs) !important;
   padding-bottom: var(--hnes-gap-3);
+}
+/* HN.stripPipes removes the item page's " | " text nodes; `gap` takes over
+   the spacing so the links don't run together, matching the index subline. */
+.subtext .subline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--hnes-gap-2);
 }
 html body .subtext a:link,
 html body .subtext a:visited,
@@ -1232,6 +1406,14 @@ a.dead { text-decoration: line-through !important; }
 .togg { display: none; }
 /* Trim the padding HN's comment rows carry (issue #140). */
 .comtr td { padding: 0; }
+
+/* Failsafe: if the rewrite throws, show HN's own tree rather than nothing. */
+.hnes-comment-fallback { display: table !important; }
+.hnes-comment-fallback-note {
+  margin: 0 0 var(--hnes-gap-2);
+  color: var(--hnes-fg-muted);
+  font-size: var(--hnes-size-xs);
+}
 
 #hnes-comments {
   color: var(--hnes-fg);
@@ -1334,6 +1516,23 @@ a.dead { text-decoration: line-through !important; }
 .hnes-comment .text a { text-decoration: underline; }
 
 /*
+ * `.toptext` is HN's own class for a self post's story text — it sits outside
+ * #hnes-comments entirely, so none of the rules above reach it. Match them by
+ * hand, `!important` included, because `.item-header tr:nth-child(3) td` (below)
+ * already forces this row's colour and needs to be out-specified rather than
+ * left to fight the cascade on source order.
+ */
+.toptext {
+  font-size: var(--hnes-size-comment) !important;
+  line-height: var(--hnes-com-lead);
+  max-width: var(--hnes-measure);
+  overflow-wrap: anywhere;
+}
+.toptext a:link,
+.toptext a:visited { color: var(--hnes-link) !important; text-decoration: underline; }
+.toptext a:hover { color: var(--hnes-link-hover) !important; }
+
+/*
  * extractCommentParts hands .text bare <p> nodes, so paragraph rhythm was
  * whatever the UA default 1em happened to be — untouched by any token and the
  * largest single contributor to a thread's scroll length. The leading <p> is
@@ -1381,6 +1580,19 @@ html body .comment {
 .default a:link { color: var(--hnes-link); }
 
 /*
+ * The collapser, the unvoter and the tag control were all <a> with no href,
+ * which a browser never puts in the tab order — real <button>s now, so this
+ * resets the UA chrome that comes with that element rather than the anchor
+ * defaults the rest of the stylesheet assumes.
+ */
+.hnes-comment .collapser,
+.hnes-comment .unvoter,
+.hnes-tag {
+  padding: 0;
+  color: inherit;
+}
+
+/*
  * The collapse control was a 14px-wide bare glyph — the smallest target in the
  * comment and the one clicked most. It is now a square button matching the nav
  * pills: same radius, same hover tint, same transition.
@@ -1398,14 +1610,18 @@ html body .comment {
   line-height: 1;
   cursor: pointer;
   user-select: none;
+  /* Named explicitly now that it is a <button>: it used to take the link
+     colour from `#hnes-comments a` and the orange from `#content a:hover` for
+     free, and a button gets neither. */
+  color: var(--hnes-link);
   transition: background-color .12s ease, color .12s ease;
 }
-/* Colour is deliberately absent: the glyph is an <a>, so it already takes the
-   link colour from `#hnes-comments a` and the orange from `#content a:hover`,
-   both of which out-specify anything set here. Only the tint is ours. */
-.hnes-comment .collapser:hover { background: var(--hnes-surface-hi); }
-.hnes-comment .collapser::after { content: "[\2013]"; }
-.hnes-comment.collapsed .collapser::after { content: "[+]"; }
+.hnes-comment .collapser:hover {
+  background: var(--hnes-surface-hi);
+  color: var(--hnes-link-hover);
+}
+.hnes-comment .collapser::after { content: "\2212"; }
+.hnes-comment.collapsed .collapser::after { content: "+"; }
 
 .hnes-comment .reply-count { display: none; }
 /* :not(:empty) — renderComment only fills this when descCount > 0, so a
@@ -1419,8 +1635,24 @@ html body .comment {
   font-size: 11px;
 }
 
+/* /threads and /newcomments: which story a comment belongs to, trailing the
+   header. Muted, and its own link colour is dropped to match. */
+.hnes-comment .on-story { color: var(--hnes-fg-muted); }
+.hnes-comment .on-story a { color: inherit; }
+
 .hnes-comment footer {
   font-size: var(--hnes-size-xs);
+}
+/* reply/parent used to inherit the plain black, always-underlined link look;
+   the id prefix matches `#hnes-comments a`'s specificity so this can win
+   without !important, same as the permalink override above. */
+#hnes-comments .hnes-comment footer a,
+#hnes-comments .hnes-comment footer a:visited {
+  color: var(--hnes-fg-muted);
+  text-decoration: none;
+}
+#hnes-comments .hnes-comment footer a:hover {
+  color: var(--hnes-link-hover);
   text-decoration: underline;
 }
 
@@ -1431,12 +1663,55 @@ html body .comment {
 .hnes-comment .score { display: none; }
 .hnes-comment .score.visible { display: inline-block; }
 
+/*
+ * Three cards shaped like a comment, standing in for the old plain box while
+ * comments load. The status text (also updated as pagination progresses) is
+ * screen-reader only, so a sighted reader sees only the cards.
+ */
 #loading_comments {
-  margin: 1em;
-  padding: 1em;
-  color: var(--hnes-fg);
-  background-color: var(--hnes-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--hnes-com-gap);
+  margin: 1em 0;
+}
+.hnes-skeleton-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.hnes-skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hnes-gap-2);
+  padding: var(--hnes-com-pad-y) var(--hnes-com-pad-x);
   border-radius: var(--hnes-radius);
+  background-color: var(--hnes-com-fill);
+}
+.hnes-skeleton-line {
+  height: 10px;
+  border-radius: var(--hnes-radius);
+  background-color: var(--hnes-surface-hi);
+}
+.hnes-skeleton-line-head { width: 40%; height: 12px; }
+.hnes-skeleton-line-short { width: 60%; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .hnes-skeleton-line {
+    background-image: linear-gradient(90deg,
+      var(--hnes-surface-hi) 0%, var(--hnes-surface-alt) 50%, var(--hnes-surface-hi) 100%);
+    background-size: 200% 100%;
+    animation: hnes-skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+}
+@keyframes hnes-skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
 }
 
 
@@ -1548,18 +1823,47 @@ a:hover .votearrow::after,
    User tags
    =========================================================================== */
 
-.hnes-tag,
 .hnes-tagText:not(:empty) { cursor: pointer; }
-/* Flat black glyph — quieten it so it reads as an affordance next to the
-   username rather than the loudest thing in the header. The comment header now
-   centres it as a flex item, so the old negative margin-bottom is gone. */
+/*
+ * The tag control used to be a bare <img> that no keyboard user could reach.
+ * It is a <button> now, holding the icon rather than being it, and hidden
+ * until the header is hovered or focused — a tag icon on every comment was
+ * clutter for a feature most readers never use, so it only earns its place
+ * once the pointer is nearby, a tag is already set, or the editor is open.
+ */
 .hnes-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: var(--hnes-radius);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s ease, background-color .12s ease;
+}
+.hnes-comment header:hover .hnes-tag,
+.hnes-comment header:focus-within .hnes-tag,
+.hnes-tag-cont:has(.hnes-tagText:not(:empty)) .hnes-tag,
+.hnes-tag-cont.edit .hnes-tag {
+  opacity: 1;
+  pointer-events: auto;
+}
+.hnes-tag:hover,
+.hnes-tag:focus-visible { background: var(--hnes-surface-hi); }
+/* Flat black glyph — quieten it to the muted-foreground step so it reads as an
+   affordance next to the username rather than the loudest thing in the
+   header. Pointer events stay on the button: the icon must never become the
+   click target editUserTag reads e.target from. */
+.hnes-tag-icon {
+  display: block;
   width: 12px;
   height: 12px;
-  opacity: .45;
-  transition: opacity .12s ease;
+  opacity: .7;
+  pointer-events: none;
 }
-.hnes-tag:hover { opacity: .9; }
+.hnes-tag:hover .hnes-tag-icon,
+.hnes-tag:focus-visible .hnes-tag-icon { opacity: 1; }
 .hnes-tagText:not(:empty) {
   padding: 1px 6px;
   border-radius: 999px;
@@ -1576,9 +1880,9 @@ a:hover .votearrow::after,
 .hnes-tag-cont.edit .hnes-tagText { display: none; }
 .hnes-tag-cont.edit .hnes-tagEdit { display: initial; }
 /* The tag icon ships as a flat black SVG; lift it in dark mode. */
-:root[data-hnes-theme="dark"] .hnes-tag { filter: invert(1); }
+:root[data-hnes-theme="dark"] .hnes-tag-icon { filter: invert(1); }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-hnes-theme="light"]) .hnes-tag { filter: invert(1); }
+  :root:not([data-hnes-theme="light"]) .hnes-tag-icon { filter: invert(1); }
 }
 
 
@@ -1588,7 +1892,8 @@ a:hover .votearrow::after,
 
 /* news.css puts monospace on input/textarea at the same specificity. */
 html body textarea,
-html body input {
+html body input,
+html body select {
   font-family: var(--hnes-font);
   border-width: 1px;
   border-radius: var(--hnes-radius);
@@ -1607,11 +1912,49 @@ form textarea {
   overflow: auto;
   margin-bottom: var(--hnes-gap-3);
   width: 100%;
-  max-width: 640px;
+  /* Same cap as comment text, not an arbitrary one — the reply box reads as
+     part of the same content column, so it should stop where that does. */
+  max-width: var(--hnes-measure);
   box-sizing: border-box;
 }
+
+/*
+ * The reply box: HN ships a bare textarea plus a "help" link that trails the
+ * form on its own line. JS wraps both in .hnes-reply-box so help can pin to
+ * the textarea's own corner and the box can grow with typed content.
+ */
+/* Same width as the textarea itself, so the pinned help link's corner lines
+   up with the textarea's actual edge rather than a wider, empty wrapper. `ch`
+   is font-relative, so this only matches the textarea's cap if it shares the
+   textarea's font-size too — the bare `textarea` rule fixes that at -sm. */
+.hnes-reply-box {
+  position: relative;
+  font-size: var(--hnes-size-sm);
+  max-width: var(--hnes-measure);
+}
+.hnes-reply-box textarea {
+  display: block;
+  /* !important: the bare `textarea` rule above sets padding !important too,
+     and without room reserved here help would sit over the last typed line. */
+  padding-bottom: calc(var(--hnes-gap-3) + 1.2em) !important;
+  max-height: 400px;
+  /* JS grows the box itself; the native handle would just fight that and sit
+     under the help link in the same corner. */
+  resize: none;
+}
+.hnes-reply-box a[href="formatdoc"] {
+  position: absolute;
+  right: var(--hnes-gap-2);
+  bottom: var(--hnes-gap-2);
+}
+.hnes-reply-box a[href="formatdoc"],
+.hnes-reply-box a[href="formatdoc"] font {
+  color: var(--hnes-fg-muted);
+  font-size: var(--hnes-size-xs);
+}
 input[type="text"],
-input[type="password"] {
+input[type="password"],
+select {
   font-size: var(--hnes-size-sm) !important;
   padding: 5px var(--hnes-gap-2);
   background: var(--hnes-surface);
@@ -1620,10 +1963,31 @@ input[type="password"] {
 }
 form textarea:focus,
 textarea:focus,
-input:focus {
-  outline: 2px solid var(--hnes-orange);
+input:focus,
+select:focus {
+  outline: var(--hnes-focus-ring);
   outline-offset: 1px;
   border-color: var(--hnes-orange) !important;
+}
+
+/*
+ * Every other control the extension draws — none of them had a ring tuned for
+ * these palettes, so a keyboard user fell back to the browser default. One
+ * rule, the same ring as the inputs above, rather than one per control.
+ */
+.nav-links > span > a:focus-visible,
+.more-arrow > a:focus-visible,
+html body .hnes-settings-host > a.hnes-gear:focus-visible,
+html body #header .hnes-search-toggle:focus-visible,
+.votearrow:focus-visible,
+.hnes-comment .collapser:focus-visible,
+.hnes-comment .unvoter:focus-visible,
+.hnes-tag:focus-visible,
+#hnes-comments .hnes-comment footer a:focus-visible,
+html body .hnes-settings button.hnes-settings-tab:focus-visible,
+html body .hnes-settings a.hnes-settings-opt:focus-visible {
+  outline: var(--hnes-focus-ring);
+  outline-offset: 1px;
 }
 
 input[type="submit"] {
@@ -1646,19 +2010,6 @@ form input[type="submit"] { display: block; }
 
 /* HN's orange section headings duplicate the nav; HNES hides them. */
 font[color="#ff6600"] { display: none; }
-
-input[name="q"] {
-  margin-left: var(--hnes-gap-3);
-  height: 32px;
-  padding-left: var(--hnes-gap-3);
-  color: var(--hnes-fg-muted) !important;
-}
-input[name="q"]:focus { color: var(--hnes-fg) !important; }
-form[action="http://hn.algolia.com/"],
-form[action="//hn.algolia.com/"],
-input[name="q"] { width: 270px; }
-form[action="http://hn.algolia.com/"],
-form[action="//hn.algolia.com/"] { margin: 0 auto; }
 
 a[href^="reply"]:visited { color: var(--hnes-link); }
 .input-help { color: var(--hnes-fg-muted); font-size: var(--hnes-size-xs); }
@@ -1712,6 +2063,18 @@ form[action="/r"] input[type="submit"] { margin: 0; }
    Profiles, login, polls, jobs, threads
    =========================================================================== */
 
+/* The label/value table gets the same surface, border and radius the comment
+   cards and the settings panel use, so the page reads as one card rather than
+   raw HN markup. `table, td { background: none !important }` above needs
+   matching !important here or the card would stay transparent. */
+#user-body #user-profile {
+  background: var(--hnes-surface) !important;
+  border: 1px solid var(--hnes-border);
+  border-radius: var(--hnes-radius);
+  padding: var(--hnes-com-pad-y) var(--hnes-com-pad-x);
+  max-width: var(--hnes-measure);
+}
+
 #user-profile td:first-child,
 body#poll-body form td:first-child,
 body#login-body tr#content form td:first-child {
@@ -1728,6 +2091,41 @@ body#login-body tr#content form td:first-child {
 #others-profile-submitted,
 #your-profile-change-password { padding-top: 2em; }
 
+/* submissions/comments/favorites (plus hidden/upvoted/changepw on your own
+   page) as a row of pills, built by HN.groupUserLinks, instead of HN's own
+   stack of one-link rows. */
+.hnes-user-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--hnes-gap-2);
+  margin-top: var(--hnes-gap-2);
+}
+#user-profile .hnes-user-links a.hnes-pill {
+  display: inline-block;
+  padding: 7px 12px;
+  border-radius: var(--hnes-radius-pill);
+  background: var(--hnes-surface-alt);
+  color: var(--hnes-fg);
+  font-weight: 600;
+  font-size: var(--hnes-size-sm);
+  text-decoration: none !important;
+  transition: background-color .12s ease, color .12s ease;
+}
+#user-profile .hnes-user-links a.hnes-pill:hover {
+  background: var(--hnes-surface-hi);
+  color: var(--hnes-orange) !important;
+}
+
+/* about is the same story-text markup a comment body gets, so it takes the
+   same measure, leading and wrap rule that keeps a bare URL from forcing
+   horizontal scroll. */
+#user-profile .hnes-user-about {
+  max-width: var(--hnes-measure);
+  font-size: var(--hnes-size-comment);
+  line-height: var(--hnes-leading);
+  overflow-wrap: anywhere;
+}
+
 .item-header tr:nth-child(3) td { color: var(--hnes-fg) !important; }
 
 #login-body tr#content form { margin-top: var(--hnes-gap-3); }
@@ -1741,15 +2139,61 @@ body#login-body tr#content form td:first-child {
 #login-body h1 { font-size: 130%; color: var(--hnes-fg); }
 #login-body a:hover { text-decoration: underline; }
 
-.poll-graph {
-  display: block;
-  height: 28px;
-  background-color: var(--hnes-brand);
-  border-radius: 3px;
+/*
+ * Poll options arrive as a plain HN list (arrow, td.comment, then a separate
+ * score row) — graphPoll (js/hn.js) folds the score row into the option row
+ * and appends this bar, so each option is one row: arrow, text, bar. The bar
+ * width is that option's share of the poll's total points, not of the
+ * largest option, so the bars sum to the vote count. Scoped to .poll-options,
+ * the class graphPoll adds to the options table, so item pages without a
+ * poll are untouched.
+ */
+.poll-options td.votelinks,
+.poll-options td.comment {
+  vertical-align: top;
+}
+.poll-options .comment {
+  overflow-wrap: anywhere;
+}
+.poll-options .poll-graph {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--hnes-gap-2);
+  max-width: 100%;
+  margin-top: var(--hnes-gap-1);
+}
+.poll-options .poll-graph-track {
+  flex: 1 1 auto;
+  min-width: 24px;
+  height: 6px;
+  border-radius: var(--hnes-radius);
+  background: var(--hnes-surface-hi);
+  overflow: hidden;
+}
+.poll-options .poll-graph-fill {
+  height: 100%;
+  border-radius: var(--hnes-radius);
+  background: var(--hnes-brand);
+}
+.poll-options .poll-graph-score {
+  flex: none;
+  color: var(--hnes-fg-muted);
+  font-size: var(--hnes-size-xs);
+  white-space: nowrap;
 }
 
 #jobs-body table table { padding-left: 7px; margin: 0 auto; }
 #jobs-body #content > td { margin: 0; padding: 0; }
+/* HN's own intro line is a plain block that fills the row edge to edge, while
+   the job table beside it shrinks to its content and centers. `display: table`
+   gets the intro to shrink the same way, so both land in one column. The
+   !important beats the inline margin HN ships on that line. */
+#jobs-body #content > td > div,
+#jobs-body .blurb {
+  display: table;
+  margin: 0 auto !important;
+}
 
 #threads-body .morelink,
 #threads-body .morelink:hover {
@@ -1772,16 +2216,17 @@ body#login-body tr#content form td:first-child {
 }
 #alert a { color: var(--hnes-fg); }
 
- /* news.css sets .yclinks{font-size:8pt}; the colour below was already armored
-    with !important but the font-size next to it was not. */
-/* Colour lands on the " | " text nodes only — every word in here is a link and
-   takes the link colour — so this one stays subtle. */
+ /* news.css sets .yclinks{font-size:8pt}; the font-size below was not already
+    armored the way the colour was. */
+/* HN separates these links with bare " | " text nodes; HN.stripPipes removes
+   them and `gap` takes over the spacing, the way the index subline works. */
 html body .yclinks {
-  display: block;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--hnes-gap-2);
   padding: var(--hnes-gap-3);
-  text-align: center;
   font-size: var(--hnes-size-xs);
-  color: var(--hnes-fg-subtle);
 }
 .yclinks a { color: var(--hnes-fg-muted) !important; }
 
@@ -1807,7 +2252,9 @@ html body .yclinks {
 @media (max-width: 860px) {
   :root {
     --hnes-size-title: 16px;
-    --hnes-col-comments: 52px;
+    /* Still pinned in this band, so the tally must fit on one line: `999 / 9999`
+       needs ~82px. Below 560px it goes back in the flow and can shrink again. */
+    --hnes-col-comments: 82px;
     --hnes-col-score: 44px;
     /* Widen the gutter slots for touch. Growing the arrows themselves would
        overflow the column that holds them, which is the bug this replaces. */
@@ -1831,6 +2278,15 @@ html body .yclinks {
     margin-left: var(--hnes-gap-1);
     padding-left: var(--hnes-gap-2);
   }
+  /* Charging margin + padding + border at every level has no ceiling — a deep
+     thread like /threads can reach 11, which is more indent than a 375px
+     viewport can give up. Past this depth hold the line at a hairline: no
+     further margin or padding, just the border that shows nesting continues. */
+  #hnes-comments .replies .replies .replies .replies {
+    margin-left: 0;
+    padding-left: 0;
+    border-left-width: 1px;
+  }
   /* Cap rather than set, and only the axis that needs it: the modes already
      tighter than 8px (flow at zero) keep their own value, and vertical padding
      keeps flowing from the single declaration on .hnes-comment. */
@@ -1839,6 +2295,13 @@ html body .yclinks {
   .hnes-comment section.body { margin-left: var(--hnes-gap-4); }
 
   form textarea { max-width: 100%; }
+}
+
+/* Below this the byline runs on after the title and wraps into it. The domain
+   stays on the title line — it's part of the title's meaning — but the rest of
+   the subline reads better as its own row. */
+@media (max-width: 600px) {
+  #index-body .hnes-subline { display: block; }
 }
 
 @media (max-width: 560px) {
@@ -1855,5 +2318,66 @@ html body .yclinks {
     display: block;
     height: auto;
     padding-top: 0;
+    /* The column is 44px here, too narrow for `999 / 9999` on one line. Back in
+       the flow a wrapped tally grows the row instead of overlapping, so the
+       nowrap that protects the pinned layout would only cause overflow. */
+    white-space: normal;
+  }
+
+  /* The header's three table cells no longer fit one row, and a table can't
+     wrap on its own — the nav pills wrapped inline instead, splitting across
+     two lines with no say over which cell went where. A grid on the row
+     itself decides the split: logo and login/gear keep one row, the section
+     pills get a row of their own that scrolls rather than wraps again.
+     "user" is unfilled on the synthetic login/submit header, which has no
+     third cell — an unclaimed grid area is just empty space. */
+  #header table tr {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "logo . user"
+                          "nav  nav nav";
+    /* start, not center: the logo and the login/gear pills carry the same
+       top padding from the shared #header table td rule but different
+       heights (a bare 18px icon vs. a padded pill), so centering would put
+       their tops at different offsets from the row. Flush to the top keeps
+       both at that one shared padding value instead. */
+    align-items: start;
+    row-gap: var(--hnes-gap-1);
+  }
+  #header table td:first-child  { grid-area: logo; }
+  #header table td:nth-child(2) { grid-area: nav; }
+  #header table td:nth-child(3) { grid-area: user; }
+
+  /* Scrolls sideways instead of wrapping to a third line. Scoped to
+     #top-navigation because .nav-links is also the class the logged-in user
+     menu builds in the third cell, which must not scroll. nowrap is what
+     forces the scroll rather than a wrap the width can't otherwise get; the
+     scrollbar itself is hidden because this is a nav strip, not text with
+     more to read. */
+  #top-navigation .nav-links {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+  #top-navigation .nav-links::-webkit-scrollbar { display: none; }
+
+  /* The open field takes the whole first row. The third cell has about
+     200px before it meets the logo, so the logo and the rest of the cell step
+     aside until the field shuts. The pills on row two stay. */
+  #header.hnes-searching table td:first-child { display: none; }
+  #header.hnes-searching table td:nth-child(3) { grid-column: 1 / -1; }
+  #header.hnes-searching td:nth-child(3) > .pagetop > :not(.hnes-search) { display: none; }
+  #header.hnes-searching .hnes-search { display: flex; }
+  html body #header.hnes-searching .hnes-search input { flex: 1 1 auto; width: auto; }
+
+  /* Give the story link its own full-width row and clip it there, rather
+     than letting a long title wrap the header across several lines. */
+  .hnes-comment .on-story {
+    flex: 1 0 100%;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 }

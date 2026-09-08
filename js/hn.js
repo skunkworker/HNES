@@ -171,14 +171,14 @@ class HNComments {
                     <a href="#" class="upvoter votearrow upvote" title="Upvote"></a>
                     <a href="#" class="downvoter votearrow rotate180 downvote" title="Downvote"></a>
                   </span>
-                  <a class="unvoter unvote" title="Unvote"></a>
-                  <a class="collapser" title="Toggle collapse"></a>
+                  <button type="button" class="unvoter unvote" title="Unvote" aria-label="Unvote"></button>
+                  <button type="button" class="collapser" title="Toggle collapse" aria-label="Toggle collapse" aria-expanded="true"></button>
                   <span class="score"></span>
                   <span class="author">
                     <a href="" title="User profile"></a>
                     <span class="hnes-user-score-cont noscore" title="User score">(<span class="hnes-user-score"></span>)</span>
                     <span class="hnes-tag-cont">
-                      <img class="hnes-tag" title="Tag user">
+                      <button type="button" class="hnes-tag" title="Tag user" aria-label="Tag user"><img class="hnes-tag-icon" alt="" aria-hidden="true"></button>
                       <span class="hnes-tagText" title="User tag"></span>
                       <input type="text" class="hnes-tagEdit" placeholder="">
                     </span>
@@ -283,7 +283,7 @@ class HNComments {
         level = (imgEl && (Math.floor(imgEl.getAttribute('width') / 40))) + 1,
         parentLinkEl = t.querySelector('.par a'),
         parentLinkUrl = parentLinkEl ? parentLinkEl.href : '',
-        storyLinkEl = t.querySelector('.storyon a'),
+        storyLinkEl = t.querySelector('.onstory a'),
         storyLinkUrl = storyLinkEl ? storyLinkEl.href : '',
         storyLinkText = storyLinkEl ? storyLinkEl.textContent : '',
         userFontEl = userEl ? userEl.querySelector('font') : '',
@@ -295,10 +295,13 @@ class HNComments {
         // the first <span> in the comment, which stopped working when HN moved
         // the body from a span to div.commtext: it picked up whatever class the
         // first inline element happened to carry, or nothing at all.
-        commentTextEl = commentEl.querySelector('.commtext'),
+        // commentEl is null for a row that carries no comment at all (a
+        // poll option, or a very old deleted comment) — guard both reads.
+        commentTextEl = commentEl ? commentEl.querySelector('.commtext') : null,
         commentColor = (commentTextEl && Array.from(commentTextEl.classList)
                           .find(cls => /^c[0-9a-f]{2}$/.test(cls))) || 'c00',
-        isDead = t.querySelector('span.comhead').textContent.includes(' [dead] '),
+        comheadEl = t.querySelector('span.comhead'),
+        isDead = !!comheadEl && comheadEl.textContent.includes(' [dead] '),
         scoreEl = t.querySelector('span.score'),
         score = scoreEl ? scoreEl.textContent : '';
 
@@ -355,14 +358,16 @@ class HNComments {
       upvoterEl = commentEl.querySelector('.upvoter'),
       downvoterEl = commentEl.querySelector('.downvoter'),
       unvoterEl = commentEl.querySelector('.unvoter'),
+      collapserEl = commentEl.querySelector('.collapser'),
       parentEl = commentEl.querySelector('.parent'),
       authorEl = commentEl.querySelector('.author a'),
       userscoreEl = commentEl.querySelector('.hnes-user-score'),
-      tagImageEl = commentEl.querySelector('.hnes-tag'),
+      tagImageEl = commentEl.querySelector('.hnes-tag-icon'),
       tagTextEl = commentEl.querySelector('.hnes-tagText'),
       voteblockEl = commentEl.querySelector('.voteblock');
 
     c.el = commentEl;
+    c.collapserEl = collapserEl;
 
     tagImageEl.src = chrome.runtime.getURL('/images/tag.svg');
 
@@ -382,6 +387,7 @@ class HNComments {
     authorEl.href = c.userUrl;
 
     if (c.isCollapsed) commentEl.classList.add('collapsed');
+    collapserEl.setAttribute('aria-expanded', c.isCollapsed ? 'false' : 'true');
 
     if (c.level == 1) {
       parentEl.parentNode.removeChild(parentEl);
@@ -403,7 +409,6 @@ class HNComments {
 
     commentEl.querySelector('a.upvote').href = c.upVoteUrl;
     commentEl.querySelector('a.downvote').href = c.downVoteUrl;
-    commentEl.querySelector('a.unvote').href = c.unVoteUrl;
 
     // hide upvotes or downvotes if there's no url in original (i.e. not logged in or not enough karma to downvote)
     if (!c.upVoteUrl) { upvoterEl.classList.add('voted') }
@@ -445,7 +450,7 @@ class HNComments {
       textContainer.appendChild(parts[i]);
     }
 
-    commentEl.querySelector('.collapser').addEventListener('click', e => {
+    collapserEl.addEventListener('click', e => {
       e.preventDefault();
       this.collapse(c);
     }, true);
@@ -465,7 +470,6 @@ class HNComments {
             'text/html');
         var decodedString = dom.body.textContent;
         c.unVoteUrl = decodedString;
-        commentEl.querySelector('a.unvote').href = c.unVoteUrl;
 
         HN.upvoteUserData(authorEl.textContent, 1);
         upvoterEl.classList.add('voted');
@@ -479,7 +483,7 @@ class HNComments {
     }, true);
 
     // ajax unvote
-    commentEl.querySelector('a.unvote').addEventListener('click', e => {
+    unvoterEl.addEventListener('click', e => {
       e.preventDefault();
       var httpRequest = new XMLHttpRequest();
       httpRequest.onload = function(e) {
@@ -509,6 +513,7 @@ class HNComments {
     c.isCollapsed = !c.isCollapsed;
     c.isDirty = true;
     c.el.classList.toggle('collapsed', c.isCollapsed);
+    c.collapserEl.setAttribute('aria-expanded', c.isCollapsed ? 'false' : 'true');
     this.storeMeta();
   }
 
@@ -564,28 +569,73 @@ class HNComments {
       commentTree = threadList;
     }
 
-    const nodeMap = this.nodeListToTree(this.markupToNodeList(commentTree));
+    try {
+      const nodeMap = this.nodeListToTree(this.markupToNodeList(commentTree));
 
-    this.prepare(nodeMap, nodeMap => {
-      this.nodeMap = nodeMap;
-      const commentsContainer = document.createElement('div');
-      commentsContainer.id = 'hnes-comments';
+      // /threads and /newcomments often repeat the same story across a run of
+      // top-level comments — keep it on only the first comment of each run.
+      let lastStoryUrl = null;
+      for (const child of nodeMap.root.children) {
+        if (!child.storyLinkUrl) continue;
+        if (child.storyLinkUrl === lastStoryUrl) child.storyLinkUrl = '';
+        else lastStoryUrl = child.storyLinkUrl;
+      }
 
-      this.renderComments(this.nodeMap.root.children, commentsContainer);
-      commentTree.parentNode.replaceChild(commentsContainer, commentTree);
-      if (itemList) {
-        commentsContainer.classList.add('nolevels')
-      } else {
-        // highlight new comments on threaded pages
-        CommentTracker.init();
-      }
-      // load and show user tags and point totals
-      HN.addInfoToUsers();
-      var loading_comments = document.getElementById('loading_comments');
-      if (loading_comments) {
-        loading_comments.classList.add('hidden');
-      }
-    });
+      this.prepare(nodeMap, nodeMap => {
+        var commentsContainer;
+        try {
+          this.nodeMap = nodeMap;
+          commentsContainer = document.createElement('div');
+          commentsContainer.id = 'hnes-comments';
+
+          this.renderComments(this.nodeMap.root.children, commentsContainer);
+          commentTree.parentNode.replaceChild(commentsContainer, commentTree);
+        } catch (e) {
+          // Nothing has replaced commentTree yet, so the failsafe still has
+          // something to unhide.
+          this.showFailsafe(commentTree, e);
+          return;
+        }
+
+        // The real tree is on screen now. A throw past this point (tracking,
+        // user info) shouldn't undo it — commentTree is already detached, so
+        // the failsafe has nothing left to fall back to.
+        try {
+          if (itemList) {
+            commentsContainer.classList.add('nolevels')
+          } else {
+            // highlight new comments on threaded pages
+            CommentTracker.init();
+          }
+          // load and show user tags and point totals
+          HN.addInfoToUsers();
+          // Removed, not hidden: the skeleton's own display rule is keyed on
+          // the id and would outrank a .hidden class.
+          var loading_comments = document.getElementById('loading_comments');
+          if (loading_comments) loading_comments.remove();
+        } catch (e) {
+          console.error('HNES: comments rendered, but a post-render step failed', e);
+        }
+      });
+    } catch (e) {
+      this.showFailsafe(commentTree, e);
+    }
+  }
+
+  // Markup drifts out from under us occasionally (see bug 1: a poll's option
+  // rows carry no comment markup). Rather than leave the reader with a stuck
+  // "Loading comments" box and HN's own tree hidden underneath it, fall back
+  // to showing that raw tree.
+  showFailsafe(commentTree, error) {
+    console.error('HNES could not render comments', error);
+    var loading_comments = document.getElementById('loading_comments');
+    if (loading_comments) loading_comments.remove();
+    if (!commentTree || !commentTree.parentNode) return;
+    var note = document.createElement('p');
+    note.className = 'hnes-comment-fallback-note';
+    note.textContent = "HNES could not draw the comments. This is Hacker News' own view.";
+    commentTree.parentNode.insertBefore(note, commentTree);
+    commentTree.classList.add('hnes-comment-fallback');
   }
 }
 
@@ -797,13 +847,47 @@ var HN = {
       $('tr[style="height:2px"]').remove();
 
       $('.yclinks').parent('center').css({"width" : "100%"});
+      HN.stripPipes($('.yclinks'));
 
-      var search_domain = "hn.algolia.com";
-      HN.setSearchInput($('input[name="q"]'), search_domain);
+      // Search lives in the header now (initSearch). The footer keeps its
+      // links and loses the form plus the blank lines HN pads it with.
+      $('form[action*="hn.algolia.com"]').prevAll('br').addBack().remove();
 
-      var icon = $('img[src="y18.gif"]');
+      var icon = $('img[src="y18.svg"]');
       icon.parent().attr({"href": "http://news.ycombinator.com/"});
       icon.attr('title', 'Hacker News');
+    },
+
+    // HN separates these links with bare " | " text nodes rather than markup,
+    // so a CSS selector can't reach them. Strip the pipes and let `gap` on the
+    // container do the spacing instead.
+    stripPipes: function(el) {
+      el.contents().filter(function() {
+        return this.nodeType === 3 && /^\s*\|\s*$/.test(this.nodeValue);
+      }).remove();
+    },
+
+    // HN's comment box is a bare textarea plus a "help" link with no label of
+    // its own. Wrap both so CSS can pin help to the textarea's corner, give
+    // the textarea a label screen readers can announce, and grow it with
+    // typed content instead of leaving it at HN's fixed 8-row height.
+    setUpReplyBox: function() {
+      $('form').has('textarea[name="text"]').each(function() {
+        var form = $(this),
+            textarea = form.find('textarea[name="text"]'),
+            help = form.find('a[href="formatdoc"]'),
+            box = $('<div class="hnes-reply-box"></div>');
+
+        textarea.attr('aria-label', 'Comment text');
+        textarea.before(box);
+        box.append(textarea, help);
+
+        // CSS caps the actual height; scrollHeight past that just scrolls.
+        textarea.on('input', function() {
+          textarea.css('height', 'auto');
+          textarea.css('height', textarea[0].scrollHeight + 'px');
+        });
+      });
     },
 
     injectCSS: function() {
@@ -843,6 +927,132 @@ var HN = {
     GEAR_SVG: '<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd" aria-hidden="true" focusable="false"><path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"></path></svg>',
 
     /*
+     * The Bootstrap Icons "search" glyph (MIT), inline for the same reason as
+     * the gear.
+     */
+    SEARCH_SVG: '<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg>',
+
+    /*
+     * The header's third cell — the login link when logged out, the user menu
+     * and karma when logged in — so the icons sit at the right edge rather
+     * than in among the section tabs, which are navigation and not controls.
+     * That cell is right-aligned by the stylesheet, so appending puts them
+     * last. A page where HN ships no .pagetop in the cell gets one, so every
+     * caller and every stylesheet rule sees the same parent.
+     */
+    headerSlot: function() {
+      var cell = $('#header td:nth-child(3)').first(),
+          slot = cell.find('.pagetop').first();
+      // Wrapped, not appended: what the cell already held moves inside too.
+      if (!slot.length && cell.length) {
+        slot = cell.wrapInner($('<span/>').addClass('pagetop')).children('.pagetop');
+      }
+      return slot;
+    },
+
+    /*
+     * Esc for a floating surface. Bound as it opens and cut by namespace as it
+     * shuts, so no handler sits in front of keystrokes for a shut one.
+     */
+    escapeCloses: function(ns, close) {
+      $(document).on('keydown.' + ns, function(e) {
+        if (e.key === 'Escape') close();
+      });
+    },
+
+    /*
+     * Every floating surface at once: two showing together reads as a
+     * rendering bug rather than as two menus. The older menus toggle .active
+     * blindly, so their triggers have to lose it here or their next click
+     * desyncs from what is on screen.
+     */
+    closeMenus: function() {
+      $('.nav-drop-down').hide();
+      $('.more-arrow > a.active').removeClass('active');
+      if (HN.closeSettings) HN.closeSettings();
+      if (HN.closeSearch) HN.closeSearch();
+    },
+
+    /*
+     * Search, in the header rather than at the foot of the page where HN puts
+     * it. Built here on every page instead of moving HN's form: HN prints one
+     * on index and item pages only, and one form drawn the same way everywhere
+     * beats two states. initElements drops HN's.
+     *
+     * Open and shut are one class on the form and CSS draws the width, so
+     * reduced motion is a media query rather than a branch here.
+     */
+    initSearch: function() {
+      var slot = HN.headerSlot();
+      if (!slot.length) return;
+
+      var input = $('<input/>').attr({
+            type: 'search', name: 'q',
+            placeholder: 'Search Hacker News', 'aria-label': 'Search Hacker News',
+            autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false'
+          }),
+          toggle = $('<button/>').attr({ type: 'button', 'aria-label': 'Search', 'aria-expanded': 'false' })
+                                .addClass('hnes-search-toggle')
+                                .html(HN.SEARCH_SVG),
+          form = $('<form/>').addClass('hnes-search')
+                             .attr({ role: 'search', method: 'get', action: 'https://hn.algolia.com/' })
+                             .append(input, toggle),
+          query = function() { return String(input.val() || '').trim(); },
+          // The class is the state: CSS draws the width off it, and reading it
+          // back is a class check, not a layout.
+          isOpen = function() { return form.hasClass('hnes-search-open'); },
+          set = function(on) {
+            form.toggleClass('hnes-search-open', on);
+            // On the header, not the form: below the phone breakpoint the open
+            // field takes the whole first row, and that is the row's rule.
+            $('#header').toggleClass('hnes-searching', on);
+            toggle.toggleClass('active', on).attr('aria-expanded', on ? 'true' : 'false');
+          },
+          close = function() {
+            if (!isOpen()) return;
+            set(false);
+            $(document).off('.hnesSearch');
+          },
+          show = function() {
+            if (isOpen()) return;
+            HN.closeMenus();
+            set(true);
+            HN.escapeCloses('hnesSearch', function() {
+              close();
+              toggle.trigger('focus');
+            });
+            input.trigger('focus');
+          };
+
+      // mousedown, not click: a press on the icon would otherwise blur the
+      // field first, and the focusout below would shut it before the click ran.
+      toggle.on('mousedown', function(e) { e.preventDefault(); });
+      // One control, never a dead one: shut it opens, open with text it
+      // submits, open and empty it shuts.
+      toggle.click(function() {
+        if (!isOpen()) return show();
+        if (query()) form.trigger('submit'); else close();
+      });
+      // Nothing to search for. The footer form used to send its own
+      // placeholder text as the query.
+      form.on('submit', function(e) {
+        if (!query()) e.preventDefault();
+      });
+      // Left empty, it shuts. Text keeps it open, so a click elsewhere does not
+      // lose a half-typed query. Moving to the button is not leaving.
+      form.on('focusout', function(e) {
+        var to = /** @type {Node | null} */ (e.relatedTarget);
+        if (form[0].contains(to) || query()) return;
+        close();
+      });
+
+      // The `/` binding's way in, and closeMenus's way out.
+      HN.openSearch = show;
+      HN.closeSearch = close;
+      slot.append(form);
+    },
+
+    /*
      * The settings panel: one gear at the end of the nav, one panel behind it,
      * every mode in HNESModes drawn into it.
      *
@@ -863,17 +1073,7 @@ var HN = {
      * below, which covers a panel already on screen when the other tab writes.
      */
     initSettings: function() {
-      /*
-       * The header's third cell — the login link when logged out, the user menu
-       * and karma when logged in — so the gear sits at the right edge rather
-       * than in among the section tabs, which are navigation and not settings.
-       * That cell is right-aligned by the stylesheet, so appending puts the gear
-       * last. Falling back to the cell itself covers a page where HN ships no
-       * .pagetop in it.
-       */
-      var cell = $('#header td:nth-child(3)').first(),
-          slot = cell.find('.pagetop').first();
-      if (!slot.length) slot = cell;
+      var slot = HN.headerSlot();
       if (!slot.length) return;
 
       var link = $('<a/>').attr('href', 'javascript:void(0)')
@@ -907,12 +1107,7 @@ var HN = {
         e.stopPropagation();
         if (open) return close();
 
-        // Any other open menu closes first; two floating surfaces at once reads
-        // as a rendering bug rather than as two menus. Their triggers have to
-        // lose .active with them — the older menus toggle that class blindly, so
-        // leaving it set desyncs their next click from what is on screen.
-        $('.nav-drop-down').not(panel).hide();
-        $('.more-arrow > a.active').removeClass('active');
+        HN.closeMenus();
 
         if (!panel.length) host.append(panel = HN.buildSettingsPanel());
         open = true;
@@ -925,10 +1120,8 @@ var HN = {
         // Click-away and Esc. The stopPropagation above is what makes binding
         // here safe as well as necessary: without it this very click would carry
         // on to the document and shut the panel again.
-        $(document).on('click.hnesSettings', close)
-                   .on('keydown.hnesSettings', function(e) {
-                     if (e.key === 'Escape') close();
-                   });
+        $(document).on('click.hnesSettings', close);
+        HN.escapeCloses('hnesSettings', close);
       });
 
       // A panel left open while another tab changes something: boot.js has
@@ -945,6 +1138,7 @@ var HN = {
       // clicking the gear while it is open closes it — which would make the key
       // a toggle that fights whatever put the panel on screen.
       HN.openSettings = function() { if (!open) link.trigger('click'); };
+      HN.closeSettings = close;
 
       slot.append(host);
     },
@@ -1192,6 +1386,46 @@ var HN = {
     },
 
     /*
+     * The `?` overlay. Built from the same `help` table buildKeyHelp draws
+     * into the settings panel, so the two can never list different bindings.
+     */
+    /** @type {JQuery | null} */
+    keyHelpEl: null,
+
+    openKeyHelp: function() {
+      if (HN.keyHelpEl) return;
+      var keysSpec = HNESModes.spec('hnesKeys');
+      if (!keysSpec || !keysSpec.help) return;
+      var box = $('<div/>').addClass('hnes-keyhelp')
+                           .attr('role', 'dialog')
+                           .attr('aria-modal', 'true')
+                           .attr('aria-label', 'Keyboard shortcuts')
+                           .attr('tabindex', '-1')
+                           .append($('<div/>').addClass('hnes-settings-label').text('Keyboard shortcuts'))
+                           .append(HN.buildKeyHelp(keysSpec.help))
+                           // Stopped here so the backdrop's own click-outside
+                           // handler does not see the panel as "outside".
+                           .click(function(e) { e.stopPropagation(); });
+      HN.keyHelpEl = $('<div/>').addClass('hnes-keyhelp-backdrop')
+                                .click(HN.closeKeyHelp)
+                                .append(box)
+                                .appendTo('body');
+      HN.escapeCloses('hnesKeyHelp', HN.closeKeyHelp);
+      box.trigger('focus');
+    },
+
+    closeKeyHelp: function() {
+      if (!HN.keyHelpEl) return;
+      $(document).off('.hnesKeyHelp');
+      HN.keyHelpEl.remove();
+      HN.keyHelpEl = null;
+    },
+
+    toggleKeyHelp: function() {
+      if (HN.keyHelpEl) HN.closeKeyHelp(); else HN.openKeyHelp();
+    },
+
+    /*
      * Not a setting — the one place in the extension that can say how much it
      * is holding, and empty the one store that never shrinks. Comment collapse
      * state is written per comment and carries no expire stamp, so the sweep in
@@ -1325,7 +1559,7 @@ var HN = {
       var buttonHtml = submitButton.outerHTML;
       $('form:first input[type=submit]').remove();
 
-      var headerHtml = '<tr id="header"><td bgcolor="#ff6600"><table border="0" cellpadding="0" cellspacing="0" width="100%" style="padding:2px"><tbody><tr><td><a href="http://ycombinator.com"><img src="y18.gif" width="18" height="18" style="border:1px #ffffff solid;"></a></td><td><span class="pagetop" id="top-navigation"><span class="nav-links"><span><a href="/news" class="top" title="Top stories">top</a>|</span><span><a href="/newest" class="new" title="Newest stories">new</a>|</span><span><a href="/best" class="best" title="Best stories">best</a></span></div></span></span></td></tr></tbody></table></td></tr>';
+      var headerHtml = '<tr id="header"><td bgcolor="#ff6600"><table border="0" cellpadding="0" cellspacing="0" width="100%" style="padding:2px"><tbody><tr><td><a href="http://ycombinator.com"><img src="y18.svg" width="18" height="18" style="border:1px #ffffff solid;"></a></td><td><span class="pagetop" id="top-navigation"><span class="nav-links"><span><a href="/news" class="top" title="Top stories">top</a>|</span><span><a href="/newest" class="new" title="Newest stories">new</a>|</span><span><a href="/best" class="best" title="Best stories">best</a></span></div></span></span></td></tr></tbody></table></td></tr>';
 
       // wrap content into a table
       $('body > form:first').attr('id', 'login-form');
@@ -1412,9 +1646,25 @@ var HN = {
       var comments;
 
       var itemId = HN.currentItemId();
-      var below_header = $('#content table');
+      // Direct children only: a poll's own options render as a table nested
+      // inside the item header, and '#content table' would pick that up as
+      // below_header[1] instead of the real comments table that follows the
+      // header as its sibling (bug 1).
+      var below_header = $('#content > td > table');
 
-      $("<p id='loading_comments'>Loading comments</p>").insertBefore(below_header[1])
+      // Three skeleton cards shaped like a comment, standing in for the plain
+      // "Loading comments" box. The status text moves into loading_status,
+      // updated below and in loadMoreLink — it's screen-reader only so the
+      // cards stay the only thing a sighted reader sees while comments load.
+      var skeletonCard = '<div class="hnes-skeleton-card">' +
+          '<div class="hnes-skeleton-line hnes-skeleton-line-head"></div>' +
+          '<div class="hnes-skeleton-line"></div>' +
+          '<div class="hnes-skeleton-line hnes-skeleton-line-short"></div>' +
+        '</div>';
+      $('<div id="loading_comments" class="hnes-skeleton">' +
+          '<p class="hnes-skeleton-status">Loading comments</p>' +
+          skeletonCard + skeletonCard + skeletonCard +
+        '</div>').insertBefore(below_header[1]);
 
       if (pathname == "/item") {
         $("body").attr("id", "item-body");
@@ -1430,6 +1680,10 @@ var HN = {
         //linkify self-post text
         $('.item-header tr:nth-child(3)').addClass('self-post-text').linkify();
 
+        // The item subtext still carries HN's raw " | " pipes; the index
+        // subline already dropped them, so bring this one in line.
+        HN.stripPipes($('.item-header .subline'));
+
         //fix spacing issue #86
         $(".item-header td").removeAttr('colspan');
 
@@ -1438,6 +1692,8 @@ var HN = {
 
         // move reply button to new line.
         $(".item-header input[type='submit']").css("display", "block");
+
+        HN.setUpReplyBox();
 
         var more = $('.morelink');
         //recursively load more pages on closed thread
@@ -1460,6 +1716,7 @@ var HN = {
     },
 
     doUserProfile: function() {
+      $('body').attr('id', 'user-body');
       $('#content > td').attr('id', 'user-profile');
 
       var options = $('tr > td[valign="top"]');
@@ -1467,6 +1724,10 @@ var HN = {
       var created = $(options[1]);
       var karma = $(options[2]);
       var about = $(options[3]);
+
+      about.next().addClass('hnes-user-about');
+      HN.addUserTagControl($(user).next());
+      HN.groupUserLinks(about);
 
       if (options.length === 4) {
         //other user pages
@@ -1557,6 +1818,51 @@ var HN = {
           HN.setLocalStorage('update_profile', window.location.href);
         });
       }
+
+      // Loads the stored tag onto the control just built and wires up its
+      // click/keyup handlers — HNComments.apply does this for a comment page,
+      // but /user never runs that, so nothing else will.
+      HN.addInfoToUsers();
+    },
+
+    /*
+     * Beside the username, cloned from the comment template's .author so it is
+     * the same markup, not a lookalike. addInfoToUsers, editUserTag and
+     * setUserTag all find their targets by walking up from an anchor inside
+     * .author — that's what lets a tag set here show up in comments and back.
+     */
+    addUserTagControl: function(valueCell) {
+      // HN's own cell holds the name. The URL query is attacker-controlled.
+      var username = valueCell.text().trim();
+      var template = /** @type {HTMLTemplateElement} */ (new HNComments(0).commentTemplate).content;
+      var author = document.importNode(
+        /** @type {Element} */ (template.querySelector('.author')), true);
+      var link = /** @type {HTMLAnchorElement} */ (author.querySelector('a'));
+      link.href = 'user?id=' + encodeURIComponent(username);
+      link.textContent = username;
+      var icon = /** @type {HTMLImageElement} */ (author.querySelector('.hnes-tag-icon'));
+      icon.src = chrome.runtime.getURL('/images/tag.svg');
+      valueCell.empty().append(author);
+    },
+
+    /*
+     * HN prints submissions/comments/favorites (plus hidden/upvoted/changepw on
+     * your own page) as a stack of one-link rows below the fields table. Pull
+     * them out into one row of pills instead, right after "about".
+     */
+    groupUserLinks: function(about) {
+      var links = $('#user-profile').find(
+        'a[href^="submitted"], a[href^="threads"], a[href^="favorites"], a[href^="hidden"], a[href^="upvoted"], a[href="changepw"]'
+      );
+      if (!links.length) return;
+
+      var pillRow = $('<div class="hnes-user-links">');
+      links.each(function() {
+        $(this).closest('tr').remove();
+        pillRow.append($(this).addClass('hnes-pill'));
+      });
+      $('<tr><td colspan="2"></td></tr>').find('td').append(pillRow).end()
+        .insertAfter(about.closest('tr'));
     },
 
     getFormattingHelp: function(links_work) {
@@ -1594,22 +1900,35 @@ var HN = {
     },
 
     graphPoll: function(poll) {
-      var poll_max_width = 500;
+      poll.addClass('poll-options');
       var totalscore = 0;
       var poll_scores = poll.find('.default');
       poll_scores.each(function() {
         var score = Number($(this).text().split(' ')[0]);
         totalscore += score;
       });
-      poll_scores.each(function() {
-        var score = Number($(this).text().split(' ')[0]);
+      // Each score row sits directly after its option row (tr.athing), so the
+      // two lists share an order. Folding the bar into the option row itself,
+      // rather than the row(s) HN gives the score, is what turns three rows
+      // into one.
+      poll.find('tr.athing').each(function() {
+        var $option = $(this);
+        var $scoreRow = $option.next();
+        var score = Number($scoreRow.find('.default').text().split(' ')[0]);
+        var pct = totalscore > 0 ? Math.round(score / totalscore * 100) : 0;
         if (score > 0) {
-          var width = Math.max(1, score / totalscore * poll_max_width);
-          var graph_el = $('<tr/>').append($('<td/>'))
-                                   .append($('<td/>').append($('<div/>').addClass('poll-graph')
-                                                                        .width(width)));
-          $(this).parent().after(graph_el)
+          pct = Math.max(pct, 1);
         }
+
+        var $bar = $('<div/>').addClass('poll-graph')
+          .append($('<div/>').addClass('poll-graph-track')
+            .append($('<div/>').addClass('poll-graph-fill').css('width', pct + '%')))
+          .append($('<span/>').addClass('poll-graph-score')
+            .append($scoreRow.find('.comhead'))
+            .append(' · ' + pct + '%'));
+
+        $option.find('td.comment').append($bar);
+        $scoreRow.remove();
       });
     },
 
@@ -1619,9 +1938,9 @@ var HN = {
         return;
       }
 
-      var loading_comments = document.getElementById('loading_comments')
-      if (loading_comments) {
-        loading_comments.textContent += '.';
+      var loading_status = document.querySelector('#loading_comments .hnes-skeleton-status');
+      if (loading_status) {
+        loading_status.textContent += '.';
       }
 
       var moreurl = elem.attr('href');
@@ -1638,9 +1957,9 @@ var HN = {
 
     doAfterCommentsLoad: function() {
       HN.hnComments.apply();
-      var loading_comments = document.getElementById("loading_comments");
-      if (loading_comments) {
-        loading_comments.textContent = "Rendering comments...";
+      var loading_status = document.querySelector('#loading_comments .hnes-skeleton-status');
+      if (loading_status) {
+        loading_status.textContent = "Rendering comments...";
       }
     },
 
@@ -1802,14 +2121,16 @@ var HN = {
       $('.subtext').each(function(){
         var $this = $(this);
 
-        var score = $this.find('span:first');
+        // Job rows carry no score span and no author link, so a positional
+        // guess (first span, first/second link) lands on the age instead.
+        var score = $this.find('span.score');
         var as = $this.find('a');
-        var by = $this.find('a:eq(0)');
-        var at = $this.find('a:eq(1)');
+        var by = $this.find('a.hnuser');
+        var at = $this.find('.age a');
         var comments;
 
         if (score.length == 0)
-          score = $("<span/>").text('0');
+          score = $("<span/>");
         else
           score.text(parseInt(score.text()));
         score.addClass("score").attr('title', 'Points');
@@ -1852,24 +2173,29 @@ var HN = {
                               .text('by ')
                               .append(by.attr('title', 'View profile'));
 
+        // Grouped in one wrapper so a narrow viewport can drop the whole
+        // subline to its own row without disturbing the title/domain above it.
+        var subline = $('<span/>').addClass('hnes-subline').append(by_el);
+
         var score_el = $('<td/>').append(score);
         var comments_el = $('<td/>').append(comments);
         var $prev = $this.parent().prev();
         $prev.prepend(score_el);
         $prev.prepend(comments_el);
-        $prev.find('.title').append(by_el);
+        $prev.find('.title').append(subline);
         $this.parent().next().remove();
         $this.parent().remove();
 
-        $('<span />').addClass('hnes-actions').append(
-            $this.find('a[href^=flag]'),
-            $this.find('a[href^=vouch]'),
-            $this.find('a[href^="https://hn.algolia.com/?query="]'),
-            $this.find('a[href^=hide]'),
-            $this.find('a[href^="https://www.google.com/search?q="]')
-        ).insertAfter(by_el);
-
-        $('<span />').addClass('hnes-age').text(at.text()).insertAfter(by_el);
+        subline.append(
+          $('<span />').addClass('hnes-age').text(at.text()),
+          $('<span />').addClass('hnes-actions').append(
+              $this.find('a[href^=flag]'),
+              $this.find('a[href^=vouch]'),
+              $this.find('a[href^="https://hn.algolia.com/?query="]'),
+              $this.find('a[href^=hide]'),
+              $this.find('a[href^="https://www.google.com/search?q="]')
+          )
+        );
       });
     },
 
@@ -2069,33 +2395,42 @@ var HN = {
         var hidden_div = $('<div/>').attr('id', 'nav-others')
                                     .addClass('nav-drop-down');
 
+        // The current section can be one of the hidden ones. It still needs a
+        // pill, but beside the others where "top" sits, not bolted on after
+        // "more" — and once it's up here it shouldn't also sit in the drawer.
         var new_active = $();
         hidden_pages.forEach(function(section) {
-          var new_link = $('<a/>').attr('href', section.href)
-                                  .attr('title', section.hint)
-                                  .text(section.label)
-                                  .addClass(section.label);
-
-          if (window.location.pathname == section.href)
-            new_active = new_link.clone().addClass('nav-active-link')
-                                         .addClass('new-active-link');
-
-          hidden_div.append(new_link);
+          var link = $('<a/>').attr('href', section.href)
+                              .attr('title', section.hint)
+                              .text(section.label)
+                              .addClass(section.label);
+          if (window.location.pathname == section.href) {
+            new_active = link.addClass('nav-active-link new-active-link');
+          } else {
+            hidden_div.append(link);
+          }
         });
-
-        // Nothing left over means no menu to open: promoting every section is a
-        // reachable choice now, and a "more" with an empty drawer under it is
-        // the kind of dead affordance the panel exists to avoid.
-        if (hidden_pages.length) topsel.append(more_link).append(hidden_div);
+        var hasHidden = hidden_div.children().length > 0;
 
         if (new_active.length)
           topsel.append($('<span/>').text('|').append(new_active));
 
+        // Nothing left over means no menu to open: promoting every section is a
+        // reachable choice now, and a "more" with an empty drawer under it is
+        // the kind of dead affordance the panel exists to avoid.
+        if (hasHidden) topsel.append(more_link);
+
         navigation.empty().append(topsel);
+
+        // Sibling of .nav-links, not a child of it: below the mobile
+        // breakpoint .nav-links scrolls sideways, and an overflow:auto
+        // ancestor clips an absolutely positioned descendant's drawer even
+        // though the drawer itself escapes normal flow to float over the page.
+        if (hasHidden) navigation.append(hidden_div);
 
         HN.wireDropDown(more_link, hidden_div);
 
-        if (hidden_pages.length) {
+        if (hasHidden) {
           hidden_div.offset({'left': more_link.position().left});
           hidden_div.hide();
         }
@@ -2105,6 +2440,9 @@ var HN = {
        active while the drawer is open, and a click on either closes it. */
     wireDropDown: function(trigger, drawer) {
       var toggle = function() {
+        // Read off the inline style hide() sets rather than :visible, which
+        // would force a layout to learn a fact already on the element.
+        if (drawer[0].style.display === 'none') HN.closeMenus();
         trigger.find('a').toggleClass('active');
         drawer.toggle();
       };
@@ -2132,21 +2470,6 @@ var HN = {
       }
     },
 
-    setSearchInput: function(el, domain) {
-      var text = "Search on " + domain;
-      $("input[name='q']").val(text);
-      el.focus(function(){
-        if (el.val() == text) {
-          el.val("");
-        }
-      });
-      el.blur(function(){
-        if (el.val() == "") {
-          el.val(text);
-        }
-      });
-    },
-
     /*
      * The settings are read inside the handler rather than gating the binding,
      * so turning shortcuts off in one tab is honoured by every open tab at the
@@ -2162,6 +2485,7 @@ var HN = {
             l = 76, // New tab
             c = 67, // Comments in new tab
             b = 66, // Open comments and link in new tab
+            slash = 191, // Search; with shift it is `?`, the overlay listing all of these
             shiftKey = 16; // allow modifier
         $(document).keydown(function(e){
           // Typing is not navigation. This used to check one flag set by the
@@ -2187,6 +2511,13 @@ var HN = {
             HN.open_story_in_current_tab();
           } else if (e.which == p) {
             HN.open_comments_in_current_tab();
+          } else if (e.which == slash && e.shiftKey) {
+            HN.toggleKeyHelp();
+          } else if (e.which == slash) {
+            // Stopped, or the `/` lands in the field it just focused — and in
+            // Firefox it opens quick find as well.
+            e.preventDefault();
+            if (HN.openSearch) HN.openSearch();
           } else if (e.which == h) {
             // The help this key was bound to was never written; the panel lists
             // these bindings, so it is the screen the binding always meant.
@@ -2232,9 +2563,14 @@ var HN = {
         if (next_lem.length) {
           next_lem.addClass("on_story");
           $('html, body').stop();
-          $('html, body').animate({
-            scrollTop: next_lem.offset().top - 10
-            }, 200);
+          var top = next_lem.offset().top - 10;
+          // Same failsafe as the spine transition: a motion-sensitive reader
+          // gets the jump, not the 200ms scroll.
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            $('html, body').scrollTop(top);
+          } else {
+            $('html, body').animate({ scrollTop: top }, 200);
+          }
           current.removeClass("on_story");
         }
       }
@@ -2350,6 +2686,7 @@ else {
       });
     }
 
+    HN.initSearch();
     HN.initSettings();
     HN.reveal();
   });

@@ -121,7 +121,7 @@ check('defaults marked',
     'hnesNav:top hnesNav:new hnesNav:best hnesNav:submit',
   opened.groups.flatMap(g => g.marked).join(' '));
 // The bindings were bound in hn.js and written down nowhere.
-check('every binding listed', opened.keys === 'jkolpcbh', opened.keys);
+check('every binding listed', opened.keys === 'jkolpcbh/?', opened.keys);
 check('storage reports a size', /^\d+(\.\d+)? (B|KB|MB) stored$/.test(opened.note), opened.note);
 // Five palettes, five distinct grounds — a swatch inheriting the page's palette
 // instead of carrying its own would collapse these to one value.
@@ -382,11 +382,13 @@ await page.keyboard.press('h');
 await page.waitForTimeout(200);
 check('h opens the panel', await panelDisplay() !== 'none');
 
-// The typing guard: HN's own search box is on the same document, and this used
+// The typing guard: the search field is on the same document, and this used
 // to be one flag that only the search box set — every comment box was unguarded.
+// `/` is what puts focus in the field; shut, it is not focusable.
 await page.keyboard.press('Escape');
 await page.waitForTimeout(150);
-await page.locator('input[name="q"]').first().focus();
+await page.keyboard.press('/');
+await page.waitForTimeout(200);
 await page.keyboard.press('h');
 await page.waitForTimeout(200);
 check('typing is not navigation', await panelDisplay() === 'none');
