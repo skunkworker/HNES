@@ -856,8 +856,11 @@ html body .title {
   line-height: 1.35;
   font-weight: 500;
 }
-html body .title a:link,
-html body .title a:visited { color: var(--hnes-fg); }
+html body .title a:link { color: var(--hnes-fg); }
+/* Visited titles fade so a scanned front page shows what is already read. */
+html body .title a:visited { color: var(--hnes-visited); }
+/* The open story is always visited; a faded headline on its own page reads as a bug. */
+html body#item-body .title a:visited { color: var(--hnes-fg); }
 .title a.on_story { border-left: 2px solid var(--hnes-current) !important; }
 
 .link-highlight {
