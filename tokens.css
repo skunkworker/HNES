@@ -236,6 +236,9 @@
 
   --hnes-row-pad-y:   var(--hnes-gap-2);  /* index row, top and bottom */
   --hnes-row-title:   var(--hnes-size-title);
+  /* One line box for the title, the arrow and the tallies, so all three
+     centre on the same line. Resolves on :root, so view modes follow it. */
+  --hnes-row-line:    calc(var(--hnes-row-title) * 1.35);
   --hnes-com-pad-y:   var(--hnes-gap-2);  /* comment card */
   --hnes-com-pad-x:   var(--hnes-gap-3);
   --hnes-com-gap:     var(--hnes-gap-3);  /* between sibling comments */

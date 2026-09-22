@@ -783,14 +783,19 @@ html body .hnes-settings .hnes-settings-reload a.hnes-settings-action {
  * down by half of what the first line's box has left over the arrow's own
  * 10px lands the two centres together, on every breakpoint, since it never
  * references the row's full (possibly wrapped) height.
+ *
+ * news.css also gives the arrow a 3px top margin. The offset below assumes the
+ * arrow starts at the padding edge, so that margin sat it 3px under the text.
  */
 #index-body #content table td.votelinks,
 #item-body .item-header td.votelinks {
   width: 22px;
   max-width: 22px;
 }
+#index-body #content table td.votelinks .votearrow,
+#item-body .item-header td.votelinks .votearrow { margin-top: 0; }
 #index-body #content table td.votelinks {
-  padding-top: calc(var(--hnes-row-pad-y) + (var(--hnes-row-title) * 1.35 - 10px) / 2);
+  padding-top: calc(var(--hnes-row-pad-y) + (var(--hnes-row-line) - 10px) / 2);
 }
 /* Same fix for the one story row on an item page, which HN builds outside
    #index-body and which keeps the full title size rather than the row size.
@@ -810,8 +815,9 @@ html body .hnes-settings .hnes-settings-reload a.hnes-settings-action {
   height: 100%;
   /* Absolutely positioned, so it can't inherit the row's padding — track it
      manually or the tallies drift off the title baseline in the tighter modes.
-     The extra pixel is the optical nudge the 9px here always was. */
-  padding-top: calc(var(--hnes-row-pad-y) + 1px);
+     The title's line box centres the digits on its first line. */
+  padding-top: var(--hnes-row-pad-y);
+  line-height: var(--hnes-row-line);
   padding-right: var(--hnes-gap-1);
   font-variant-numeric: tabular-nums;
   /* The box is out of flow, so a wrapped tally can't grow the row — the second
@@ -842,7 +848,10 @@ span.newcomments {
   padding-left: var(--hnes-gap-3);
   padding-right: 18px;
 }
-#index-body .title { font-size: var(--hnes-row-title) !important; }
+#index-body .title {
+  font-size: var(--hnes-row-title) !important;
+  line-height: var(--hnes-row-line);
+}
 .title:first-child { padding-left: 5px !important; }
 body#item-body .title { width: 100%; }
 /* Item pages fall outside #index-body, so the title here never got the gap

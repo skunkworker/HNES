@@ -30,7 +30,7 @@ it correct. Verified against live `news.ycombinator.com` markup on 2026-07-31.
 | Visual bugs | **Fixed** on 7 Sep 2026 — nine found on 22 Aug 2026, ranked, with screenshots: [`visual-bugs.md`](./visual-bugs.md) |
 | Polish and UX | **Implemented** on 7 Sep 2026, except the dark render sweep (2.12) — [`polish.md`](./polish.md) |
 | Search in the header | **Implemented** on 7 Sep 2026 — [`search-bar.md`](./search-bar.md) |
-| Vote arrow and tallies | Proposal only — [`vote-arrow.md`](./vote-arrow.md) |
+| Vote arrow and tallies | **Implemented** on 22 Sep 2026 — [`vote-arrow.md`](./vote-arrow.md) |
 | Theme hn.algolia.com | **Implemented** on 7 Sep 2026, opt-in — [`algolia.md`](./algolia.md) |
 | Formatting help and buttons | **Implemented** on 8 Sep 2026 — [`formatting.md`](./formatting.md) |
 | refined-hacker-news feature survey | Shortlist only, nothing decided — [`upstream-features.md`](./upstream-features.md) |
