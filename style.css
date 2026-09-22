@@ -863,32 +863,28 @@ html body .title a:visited { color: var(--hnes-visited); }
 html body#item-body .title a:visited { color: var(--hnes-fg); }
 .title a.on_story { border-left: 2px solid var(--hnes-current) !important; }
 
+/* An outline, not a border plus padding: it takes no layout space, so the
+   title stays put when a click marks the cell. */
 .link-highlight {
-  border: 1px dashed var(--hnes-border);
+  outline: 1px dashed var(--hnes-border);
+  outline-offset: -1px;
   border-radius: var(--hnes-radius);
-  padding: var(--hnes-gap-1) 27px var(--hnes-gap-1) 7px !important;
 }
-td #more.link-highlight {
-  border: none;
-  padding: 5px 18px 5px var(--hnes-gap-2) !important;
-}
+td #more.link-highlight { outline: none; }
 
 /* Read as the list's last row instead of a stray link below it: a background
    that doesn't depend on zebra parity landing on this row by chance, and the
    row's own padding moved onto the link so the whole row is the tap target,
-   not just the word. Untouched in the .link-highlight state, which keeps its
-   own padding above. */
+   not just the word. */
 #index-body #content tr:has(> #more) {
   background-color: var(--hnes-row-zebra) !important;
 }
-#more { text-align: left !important; }
-#more:not(.link-highlight) { padding: 0 !important; }
+#more { text-align: left !important; padding: 0 !important; }
 #more a {
   display: block;
   padding: var(--hnes-row-pad-y) 18px var(--hnes-row-pad-y) var(--hnes-gap-3);
   color: var(--hnes-orange);
 }
-#more.link-highlight a { padding: 0; }
 #more a:hover { text-decoration: underline; }
 
 .blurb {
