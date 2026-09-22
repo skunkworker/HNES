@@ -171,6 +171,13 @@ rate-limit immediately.
 ran, which is the tell for a throw partway through the rewrite — a page that
 still *looks* fine, because the failsafe animation shows it anyway.
 
+It also serves one small thread at `/item`, a known tree of six comments, for
+the thread keys (`j`/`k`, `Shift+J`/`Shift+K`, `Enter`, `r`, `Esc`, and the
+typing and off-switch guards), the spine click, and "Fold all". A live thread
+changes under the harness, so it could not say where `j` should land. The
+highlight is checked at 3:1 against the comment fill in both themes and all
+five palettes.
+
 ## controls.mjs — the settings panel end to end
 
 Opens the gear, picks options out of the panel, and checks the attribute is

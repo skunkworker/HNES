@@ -422,8 +422,9 @@ html body #header .hnes-search-open input {
 }
 
 /*
- * The tab strip. Equal widths rather than shrink-to-fit, so the strip reads as
- * one control and the selected tab cannot move the others by changing width.
+ * The tab strip. Each tab takes its label's width plus an equal share of the
+ * rest: five equal cells in 268px cut "Sections" short. The selection changes
+ * colour, not weight, so a tab's width is fixed and cannot move the others.
  * Buttons, not the anchors the rest of the panel uses: `.nav-drop-down a`
  * pins colour with !important and forces nowrap, and a tab is not a link.
  */
@@ -448,7 +449,7 @@ html body .hnes-settings button.hnes-settings-tab,
   font: inherit;
 }
 html body .hnes-settings button.hnes-settings-tab {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-width: 0;
   margin: 0;
   font-size: var(--hnes-size-xs);
@@ -1041,6 +1042,54 @@ a.dead { text-decoration: line-through !important; }
 #hnes-comments .replies:hover { border-left-color: var(--hnes-spine-active); }
 #hnes-comments .replies:has(.replies:hover) { border-left-color: var(--hnes-spine); }
 .replies:empty { display: none; }
+
+/*
+ * Clicking the spine folds the comment that owns it. A 2px line is too thin
+ * to aim at, so this strip covers the indent on both sides of it. It only
+ * spans margin and padding, never a reply, so it takes no clicks from text.
+ * The keyboard route is the fold button and Enter, so this needs no focus.
+ */
+#hnes-comments .replies { position: relative; }
+#hnes-comments .replies::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(-2px - var(--hnes-com-indent));
+  width: calc(2px + var(--hnes-com-indent) * 2);
+  cursor: pointer;
+}
+
+/*
+ * The comment j/k is on. The header only: the comment box holds its whole
+ * subtree, so marking the box would mark every reply under it too. Blue
+ * --hnes-current, the index's "you are here", so it never reads as new
+ * (orange) or as focus (the orange ring). Outline and shadow, so nothing moves.
+ */
+.hnes-comment.hnes-current-comment > header {
+  --hnes-current-wash: color-mix(in oklab, var(--hnes-current) 14%, transparent);
+  background: var(--hnes-current-wash);
+  box-shadow: 0 0 0 3px var(--hnes-current-wash);
+  outline: 2px solid var(--hnes-current);
+  outline-offset: 3px;
+  border-radius: var(--hnes-radius);
+}
+
+/* Fold all / unfold all, above the tree. Quiet, like the footer links. */
+.hnes-fold-all {
+  appearance: none;
+  display: block;
+  margin: 0 0 var(--hnes-gap-2) auto;
+  padding: 2px var(--hnes-gap-2);
+  font: inherit;
+  font-size: var(--hnes-size-xs);
+  color: var(--hnes-fg-muted);
+  background: var(--hnes-surface-alt);
+  border: 1px solid var(--hnes-border);
+  border-radius: var(--hnes-radius);
+  cursor: pointer;
+}
+.hnes-fold-all:hover { color: var(--hnes-fg); }
 
 @media (prefers-reduced-motion: reduce) {
   #hnes-comments .replies { transition: none; }
@@ -1636,6 +1685,7 @@ html body .hnes-settings-host > a.hnes-gear:focus-visible,
 html body #header .hnes-search-toggle:focus-visible,
 .votearrow:focus-visible,
 .hnes-comment .collapser:focus-visible,
+.hnes-fold-all:focus-visible,
 .hnes-comment .unvoter:focus-visible,
 .hnes-tag:focus-visible,
 #hnes-comments .hnes-comment footer a:focus-visible,
