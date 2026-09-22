@@ -38,6 +38,7 @@ var CommentTracker = {
 
     for (var i = 0; i < comments.length; i++) {
       var id = comments[i].getAttribute('id');
+      if (!id) continue;
       var comment = HN.hnComments.nodeMap[id];
 
       if (id > last_id) {
@@ -123,9 +124,10 @@ var CommentTracker = {
     $('.comments').each(function() {
       var href = $(this).attr('href');
       if (href) {
-        var id=$(this).attr('href').match(/id=(\d+)/);
-        if(id){
-            id = Number(id[1]);
+        var id_match = href.match(/id=(\d+)/);
+        var id;
+        if(id_match){
+            id = Number(id_match[1]);
         }
         else{
             //For some reason, the link we are processing is not to an HN comment section
@@ -201,7 +203,7 @@ class HNComments {
           </div>
       </template>
       `
-    this.commentTemplate = injector.firstElementChild;
+    this.commentTemplate = /** @type {HTMLTemplateElement} */ (injector.firstElementChild);
     this.storyId = storyId;
   }
 
@@ -261,11 +263,11 @@ class HNComments {
         t = commentTables[i],
         id = t.parentElement.parentElement.id || t.id,
         upVoteEl = document.getElementById('up_' + id),
-        upVoteUrl = upVoteEl ? upVoteEl.href : '',
+        upVoteUrl = upVoteEl instanceof HTMLAnchorElement ? upVoteEl.href : '',
         downVoteEl = document.getElementById('down_' + id),
-        downVoteUrl = downVoteEl ? downVoteEl.href : '',
+        downVoteUrl = downVoteEl instanceof HTMLAnchorElement ? downVoteEl.href : '',
         unVoteEl = document.getElementById('un_' + id),
-        unVoteUrl = unVoteEl ? unVoteEl.href : '',
+        unVoteUrl = unVoteEl instanceof HTMLAnchorElement ? unVoteEl.href : '',
         isUpVoted = upVoteEl && upVoteEl.classList.contains('nosee'),
         isDownVoted = downVoteEl && downVoteEl.classList.contains('nosee'),
         replyEl = t.querySelector('.reply a'),
@@ -354,17 +356,17 @@ class HNComments {
       kids = c.children,
       oddOrEven = c.level % 2 ? 'odd' : 'even',
       clone = document.importNode(this.commentTemplate.content, true),
-      commentEl = clone.firstElementChild,
-      upvoterEl = commentEl.querySelector('.upvoter'),
-      downvoterEl = commentEl.querySelector('.downvoter'),
-      unvoterEl = commentEl.querySelector('.unvoter'),
-      collapserEl = commentEl.querySelector('.collapser'),
-      parentEl = commentEl.querySelector('.parent'),
-      authorEl = commentEl.querySelector('.author a'),
-      userscoreEl = commentEl.querySelector('.hnes-user-score'),
-      tagImageEl = commentEl.querySelector('.hnes-tag-icon'),
-      tagTextEl = commentEl.querySelector('.hnes-tagText'),
-      voteblockEl = commentEl.querySelector('.voteblock');
+      commentEl = /** @type {HTMLElement} */ (clone.firstElementChild),
+      upvoterEl = /** @type {HTMLElement} */ (commentEl.querySelector('.upvoter')),
+      downvoterEl = /** @type {HTMLElement} */ (commentEl.querySelector('.downvoter')),
+      unvoterEl = /** @type {HTMLElement} */ (commentEl.querySelector('.unvoter')),
+      collapserEl = /** @type {HTMLElement} */ (commentEl.querySelector('.collapser')),
+      parentEl = /** @type {HTMLAnchorElement} */ (commentEl.querySelector('.parent')),
+      authorEl = /** @type {HTMLAnchorElement} */ (commentEl.querySelector('.author a')),
+      userscoreEl = /** @type {HTMLElement} */ (commentEl.querySelector('.hnes-user-score')),
+      tagImageEl = /** @type {HTMLImageElement} */ (commentEl.querySelector('.hnes-tag-icon')),
+      tagTextEl = /** @type {HTMLElement} */ (commentEl.querySelector('.hnes-tagText')),
+      voteblockEl = /** @type {HTMLElement} */ (commentEl.querySelector('.voteblock'));
 
     c.el = commentEl;
     c.collapserEl = collapserEl;
@@ -373,16 +375,16 @@ class HNComments {
 
     commentEl.id = c.id;
     commentEl.classList.add(`level-${oddOrEven}`);
-    commentEl.querySelector('.age').textContent = c.age;
+    /** @type {HTMLElement} */ (commentEl.querySelector('.age')).textContent = c.age;
     if (c.descCount > 0) {
-      commentEl.querySelector('.reply-count').textContent = `(${c.descCount} repl${c.descCount == 1 ? 'y' : 'ies'})`;
+      /** @type {HTMLElement} */ (commentEl.querySelector('.reply-count')).textContent = `(${c.descCount} repl${c.descCount == 1 ? 'y' : 'ies'})`;
     }
     if (c.replyUrl) {
-      commentEl.querySelector('.reply').href = c.replyUrl;
+      /** @type {HTMLAnchorElement} */ (commentEl.querySelector('.reply')).href = c.replyUrl;
     } else {
-      commentEl.querySelector('.reply').classList.add('noreply');
+      /** @type {HTMLElement} */ (commentEl.querySelector('.reply')).classList.add('noreply');
     }
-    commentEl.querySelector('.permalink').href = c.permalinkUrl;
+    /** @type {HTMLAnchorElement} */ (commentEl.querySelector('.permalink')).href = c.permalinkUrl;
     authorEl.textContent = c.username;
     authorEl.href = c.userUrl;
 
@@ -390,12 +392,12 @@ class HNComments {
     collapserEl.setAttribute('aria-expanded', c.isCollapsed ? 'false' : 'true');
 
     if (c.level == 1) {
-      parentEl.parentNode.removeChild(parentEl);
+      parentEl.remove();
     }
     else {
       if (c.parentLinkUrl) {
         parentEl.href = c.parentLinkUrl;
-        commentEl.querySelector('.reply-count').classList.add('noreply');
+        /** @type {HTMLElement} */ (commentEl.querySelector('.reply-count')).classList.add('noreply');
       } else {
         parentEl.href = `#${c.parent.id}`;
       }
@@ -407,8 +409,8 @@ class HNComments {
       authorEl.classList.add('original_poster');
     }
 
-    commentEl.querySelector('a.upvote').href = c.upVoteUrl;
-    commentEl.querySelector('a.downvote').href = c.downVoteUrl;
+    /** @type {HTMLAnchorElement} */ (commentEl.querySelector('a.upvote')).href = c.upVoteUrl;
+    /** @type {HTMLAnchorElement} */ (commentEl.querySelector('a.downvote')).href = c.downVoteUrl;
 
     // hide upvotes or downvotes if there's no url in original (i.e. not logged in or not enough karma to downvote)
     if (!c.upVoteUrl) { upvoterEl.classList.add('voted') }
@@ -428,9 +430,9 @@ class HNComments {
     }
 
     if (c.storyLinkUrl) {
-      commentEl.querySelector('.on-story').classList.remove('nostory');
-      commentEl.querySelector('.on-story a').href = c.storyLinkUrl;
-      commentEl.querySelector('.on-story a').textContent = c.storyLinkText;
+      /** @type {HTMLElement} */ (commentEl.querySelector('.on-story')).classList.remove('nostory');
+      /** @type {HTMLAnchorElement} */ (commentEl.querySelector('.on-story a')).href = c.storyLinkUrl;
+      /** @type {HTMLAnchorElement} */ (commentEl.querySelector('.on-story a')).textContent = c.storyLinkText;
     }
 
     if (c.commentColor) {
@@ -442,11 +444,11 @@ class HNComments {
     }
     
     if (c.score) {
-      commentEl.querySelector('.score').textContent = c.score + " by";
-      commentEl.querySelector('.score').classList.add('visible');
+      /** @type {HTMLElement} */ (commentEl.querySelector('.score')).textContent = c.score + " by";
+      /** @type {HTMLElement} */ (commentEl.querySelector('.score')).classList.add('visible');
     }
 
-    for (let parts = c.textParts, textContainer = commentEl.querySelector('.text'), i = 0; i < parts.length; i++) {
+    for (let parts = c.textParts, textContainer = /** @type {HTMLElement} */ (commentEl.querySelector('.text')), i = 0; i < parts.length; i++) {
       textContainer.appendChild(parts[i]);
     }
 
@@ -456,14 +458,17 @@ class HNComments {
     }, true);
 
     // ajax upvotes and increments user-specific upvote data
-    commentEl.querySelector('a.upvote').addEventListener('click', e => {
+    /** @type {HTMLAnchorElement} */ (commentEl.querySelector('a.upvote')).addEventListener('click', e => {
       e.preventDefault();
       var httpRequest = new XMLHttpRequest();
       httpRequest.onload = function(e) {
         // after upvoting, retrieve new unvote link from response
         var regex_str = "vote\\?id=" + commentEl.id + "&amp;how=un.*?'";
         var regex = new RegExp(regex_str)
-        var unVoteUrl = httpRequest.responseText.match(regex)[0].slice(0, -1);
+        var unvote_match = httpRequest.responseText.match(regex);
+        // No unvote link means HN did not record the vote, so the arrows stay.
+        if (!unvote_match) return;
+        var unVoteUrl = unvote_match[0].slice(0, -1);
         var parser = new DOMParser;
         var dom = parser.parseFromString(
             '<!doctype html><body>' + unVoteUrl,
@@ -499,7 +504,7 @@ class HNComments {
       httpRequest.send();
     }, true);
     
-    this.renderComments(kids, commentEl.querySelector('.replies'))
+    this.renderComments(kids, /** @type {HTMLElement} */ (commentEl.querySelector('.replies')))
     into.appendChild(clone);
   }
 
@@ -557,16 +562,13 @@ class HNComments {
   }
 
   apply() {
-    var commentTree = document.querySelector('#hnmain table.comment-tree');
     var itemList = document.querySelector('#hnmain table.itemlist');
     var threadList = document.querySelector('#hnmain table.comments-table');
-    if (!commentTree && !itemList && !threadList) {
+    // const, so the null check below still holds inside the callbacks.
+    const commentTree = itemList || threadList || document.querySelector('#hnmain table.comment-tree');
+    if (!commentTree) {
       console.warn('unrecognized markup detected, no commentTree, itemList, or threadList');
       return;
-    } else if (itemList) {
-      commentTree = itemList;
-    } else if (threadList) {
-      commentTree = threadList;
     }
 
     try {
@@ -589,7 +591,7 @@ class HNComments {
           commentsContainer.id = 'hnes-comments';
 
           this.renderComments(this.nodeMap.root.children, commentsContainer);
-          commentTree.parentNode.replaceChild(commentsContainer, commentTree);
+          commentTree.replaceWith(commentsContainer);
         } catch (e) {
           // Nothing has replaced commentTree yet, so the failsafe still has
           // something to unhide.
@@ -735,7 +737,6 @@ var HN = {
 
           var morelink = document.querySelector('.morelink');
           if (morelink) {
-            var morelink_href = morelink.href;
             $('#content').after(morelink);
           }
 
@@ -760,7 +761,6 @@ var HN = {
 
           var morelink = document.querySelector('.morelink');
           if (morelink) {
-            var morelink_href = morelink.href;
             newtable.parent().append(morelink);
           }
 
@@ -1928,7 +1928,9 @@ var HN = {
       var formTitle = $('body > b').text();
       $('body > b').remove();
       $('body > form').attr('id', 'register-form');
-      var formContent = $('#register-form').get(0).outerHTML;
+      var registerForm = $('#register-form').get(0);
+      if (!registerForm) return;
+      var formContent = registerForm.outerHTML;
       $('#register-form').remove();
 
       // rebuild title/form inside the existing table
@@ -2397,11 +2399,13 @@ var HN = {
       for (var i = 0; i < author_els.length; i++) {
         var author_el = author_els[i];
         var score_el = author_el.querySelector('.hnes-user-score');
+        var score_cont = score_el && score_el.parentElement;
+        if (!score_el || !score_cont) continue;
         if (value !== 0) {
           score_el.textContent = value;
-          score_el.parentElement.classList.remove('noscore');
+          score_cont.classList.remove('noscore');
         } else {
-          score_el.parentElement.classList.add('noscore');
+          score_cont.classList.add('noscore');
         }
       }
     },
@@ -2594,7 +2598,7 @@ var HN = {
       var score_str = pagetop.text();
       var regex = /\(([^)]+)\)/;
       var matches = regex.exec(score_str);
-      var score = matches[1];
+      var score = matches ? matches[1] : '';
 
       var score_elem = $('<span/>').text('|')
                                    .append(
@@ -2918,24 +2922,26 @@ var HN = {
 
     open_story: function(new_tab){
       if ($('.on_story').length != 0) {
-        var story = $('.on_story .title .titleline > a');
+        var story_href = $('.on_story .title .titleline > a').attr("href");
+        // A row with no title link would otherwise go to "/undefined".
+        if (!story_href) return;
         if (new_tab) {
           $('.on_story .title').addClass("link-highlight");
-          window.open(story.attr("href"));
+          window.open(story_href);
         }
         else
-          window.location = story.attr("href");
+          window.location.href = story_href;
       }
     },
 
     view_comments: function(new_tab){
       if ($('.on_story').length != 0) {
-        var comments = $('.on_story .comments');
-        if (comments.length != 0) {
+        var comments_href = $('.on_story .comments').attr("href");
+        if (comments_href) {
           if (new_tab)
-            window.open(comments.attr("href"));
+            window.open(comments_href);
           else
-            window.location = comments.attr("href");
+            window.location.href = comments_href;
         }
       }
     },
