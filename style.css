@@ -1505,10 +1505,19 @@ a:hover .votearrow::after,
    click target editUserTag reads e.target from. */
 .hnes-tag-icon {
   display: block;
+  box-sizing: border-box;
   width: 12px;
   height: 12px;
   opacity: .7;
   pointer-events: none;
+  /* tag.svg has a fixed #828282 fill, a light-mode grey that sinks into the
+     dark card. The padding pushes the <img>'s own pixels out of its box, and
+     the SVG becomes a mask over the muted token, so the glyph follows theme
+     and palette. */
+  padding-left: 12px;
+  background: var(--hnes-fg-muted);
+  -webkit-mask: url("chrome-extension://__MSG_@@extension_id__/images/tag.svg") center / 12px 12px no-repeat;
+  mask: url("chrome-extension://__MSG_@@extension_id__/images/tag.svg") center / 12px 12px no-repeat;
 }
 .hnes-tag:hover .hnes-tag-icon,
 .hnes-tag:focus-visible .hnes-tag-icon { opacity: 1; }
@@ -1647,7 +1656,9 @@ form textarea {
 }
 .hnes-reply-box .input-help { margin-top: var(--hnes-gap-2); }
 .hnes-reply-box .input-help ul { margin: 0; padding-left: var(--hnes-gap-4); }
-.input-help-unsupported { margin: var(--hnes-gap-1) 0 0; color: var(--hnes-fg-subtle); }
+/* Words, so muted rather than subtle: subtle is for punctuation only and sat
+   near 3.6:1 here in dark mode. */
+.input-help-unsupported { margin: var(--hnes-gap-1) 0 0; color: var(--hnes-fg-muted); }
 
 /* The Markdown warning. Advisory, so it is coloured as a warning and never
    blocks the form. */
@@ -1692,6 +1703,19 @@ html body #header .hnes-search-toggle:focus-visible,
 html body .hnes-settings button.hnes-settings-tab:focus-visible,
 html body .hnes-settings a.hnes-settings-opt:focus-visible {
   outline: var(--hnes-focus-ring);
+  outline-offset: 1px;
+}
+/* The header is painted in --hnes-brand, which is the accent itself in every
+   palette but classic, so an accent ring there is invisible. The header ink is
+   the colour made to read on it. The settings panel sits inside #header too,
+   on its own surface, so it keeps the accent ring. */
+html body #header .nav-links > span > a:focus-visible,
+html body #header .more-arrow > a:focus-visible,
+html body #header .pagetop > a:focus-visible,
+html body #header .hnes-settings-host > a.hnes-gear:focus-visible,
+html body #header .hnes-search-toggle:focus-visible,
+html body #header .hnes-search input:focus {
+  outline: 2px solid var(--hnes-orange-ink);
   outline-offset: 1px;
 }
 
@@ -1809,7 +1833,9 @@ body#login-body tr#content form td:first-child {
   display: inline-block;
   padding: 7px 12px;
   border-radius: var(--hnes-radius-pill);
-  background: var(--hnes-surface-alt);
+  /* In dark mode surface-alt lands on the card's own colour and the pill
+     vanishes, so dark takes the next step up. Hover there is the text colour. */
+  background: light-dark(var(--hnes-surface-alt), var(--hnes-surface-hi));
   color: var(--hnes-fg);
   font-weight: 600;
   font-size: var(--hnes-size-sm);
@@ -1860,6 +1886,9 @@ body#login-body tr#content form td:first-child {
 .poll-options .comment {
   overflow-wrap: anywhere;
 }
+/* HN wraps each option in <font color="#000000">, which is black on the
+   dark background. */
+.poll-options .comment font[color] { color: var(--hnes-fg); }
 .poll-options .poll-graph {
   display: flex;
   flex-wrap: wrap;

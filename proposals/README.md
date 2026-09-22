@@ -28,7 +28,7 @@ it correct. Verified against live `news.ycombinator.com` markup on 2026-07-31.
 | Tests | **Added** — see [`../test/README.md`](../test/README.md) |
 | Safari for iOS | Proposal only — [`safari-ios.md`](./safari-ios.md) |
 | Visual bugs | **Fixed** on 7 Sep 2026 — nine found on 22 Aug 2026, ranked, with screenshots: [`visual-bugs.md`](./visual-bugs.md) |
-| Polish and UX | **Implemented** on 7 Sep 2026, except the dark render sweep (2.12) — [`polish.md`](./polish.md) |
+| Polish and UX | **Implemented** on 7 Sep 2026; dark render sweep (2.12) done on 22 Sep 2026, six issues fixed — [`polish.md`](./polish.md) |
 | Search in the header | **Implemented** on 7 Sep 2026 — [`search-bar.md`](./search-bar.md) |
 | Vote arrow and tallies | **Implemented** on 22 Sep 2026 — [`vote-arrow.md`](./vote-arrow.md) |
 | Theme hn.algolia.com | **Implemented** on 7 Sep 2026, opt-in — [`algolia.md`](./algolia.md) |
@@ -37,7 +37,7 @@ it correct. Verified against live `news.ycombinator.com` markup on 2026-07-31.
 
 The verification below is no longer a list to work through by hand; most of it runs.
 `test/migration.mjs` drives a real version-bump upgrade and checks the data survives,
-`test/tokens.mjs` checks all 110 contrast pair/palette/theme combinations, and
+`test/tokens.mjs` checks all 130 contrast pair/palette/theme combinations, and
 `test/degenerate.mjs` checks that the bodies HN returns when something is off do not
 brick the page.
 
