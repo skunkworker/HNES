@@ -9,6 +9,10 @@ One item has already been taken from it and shipped: the formatting bar over
 the comment box, from `input-field-tweaks`, `backticks-to-monospace` and
 `key-bindings-on-input-fields` — see [`formatting.md`](./formatting.md).
 
+**Shipped 22 September 2026:** `click-comment-indent-to-toggle`,
+`toggle-all-comments-and-replies` (for top-level threads), and the comment-page
+keys — see "Keyboard bindings HNES does not have" below.
+
 ## Method
 
 The upstream README was read on 8 September 2026. Each feature was checked
@@ -26,8 +30,8 @@ that it does it the same way.
 | `show-item-info-on-hover` | Hover an item link inside a thread to see its points, age and comment count | Needs a fetch per hover and a cache. No new permission: HNES already reads `news.ycombinator.com`. |
 | `show-user-info-on-hover` | Hover a username to see karma and account age | HNES already fetches user data (`HN.getUserData`) for the upvote tally, so half the plumbing exists. |
 | `show-similar-submissions` | List earlier posts of the same URL, at the foot of a thread | Wants hn.algolia.com, which is an optional host permission today (`manifest.json`, `optional_host_permissions`). It would have to be opt-in the way the Algolia theme is. |
-| `click-comment-indent-to-toggle` | Click a comment's left indent to fold it | Small. HNES already draws the indent spine (`--hnes-spine`), so the hit area is already there to widen. |
-| `toggle-all-comments-and-replies` | One control to fold or unfold a whole thread, or one subtree | Small, and it pairs with the item above. |
+| `click-comment-indent-to-toggle` | Click a comment's left indent to fold it | **Shipped.** A click on the spine, or the indent either side of it, folds the comment that owns those replies (`HNComments.onSpineClick`). Stored like any other fold. |
+| `toggle-all-comments-and-replies` | One control to fold or unfold a whole thread, or one subtree | **Shipped, top level only.** A "Fold all" button above the tree (`HNComments.foldAll`). One subtree is already the fold button on each comment. |
 
 ### Tier 2 — worth doing, smaller payoff
 
@@ -62,7 +66,7 @@ that it does it the same way.
 
 ## Keyboard bindings HNES does not have
 
-HNES binds ten keys, all on index pages: `HN.init_keys` (`js/hn.js:2819`) is
+At the survey, HNES bound ten keys, all on index pages: `HN.init_keys` (`js/hn.js:2819`) is
 called from `HN.doPostsList` (`js/hn.js:1950`) and from nowhere else, so a
 thread page has no bindings at all — not even `/` for search or `?` for the
 overlay that lists them. The set itself is `KEYS` in `js/modes.js`. Upstream
@@ -72,9 +76,14 @@ binds far more, and on comments as well as items.
 in the background, `Esc` un-highlight, `u` upvote, `f` favourite,
 `Shift+X` flag, `Shift+H` hide.
 
-**On a comment, all missing** — HNES binds nothing on a comment page:
-`j`/`k` next and previous, `Shift+J`/`Shift+K` next and previous sibling,
-`Enter` fold, `Esc` un-highlight, `u` upvote, `d` downvote, `r` reply,
+**On a comment — shipped 22 September 2026:** `j`/`k` next and previous,
+`Shift+J`/`Shift+K` next and previous sibling, `Enter` fold, `Esc`
+un-highlight, `r` reply (follows the comment's reply link). `/`, `?` and `h`
+now work on a thread too: `HN.init_keys` takes the page's own key set and is
+called from the comment pages as well as `HN.doPostsList`. The Keyboard group
+moved to a Keys tab of its own, because fifteen rows overflowed Reading.
+
+**On a comment, still missing:** `u` upvote, `d` downvote (see note 3),
 `f` favourite, `Shift+X` flag, `0`-`9` open the numbered links in the comment.
 
 **Site-wide, all missing:** `Alt+H` home, `Alt+S` submit, `Alt+N` new,

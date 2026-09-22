@@ -121,14 +121,14 @@ check('defaults marked',
     'hnesNav:top hnesNav:new hnesNav:best hnesNav:submit',
   opened.groups.flatMap(g => g.marked).join(' '));
 // The bindings were bound in hn.js and written down nowhere.
-check('every binding listed', opened.keys === 'jkolpcbh/?', opened.keys);
+check('every binding listed', opened.keys === 'jkolpcbh/?Shift+JShift+KEnterrEsc', opened.keys);
 check('storage reports a size', /^\d+(\.\d+)? (B|KB|MB) stored$/.test(opened.note), opened.note);
 // Five palettes, five distinct grounds — a swatch inheriting the page's palette
 // instead of carrying its own would collapse these to one value.
 check('swatches show their own palette',
   new Set(opened.swatchBg).size === 5, opened.swatchBg.join(' '));
 
-// The panel is four panes rather than one column. It had reached 1519px of
+// The panel is five panes rather than one column. It had reached 1519px of
 // content in a 536px box — four of the seven groups below the fold on a
 // full-height desktop, behind an overlay scrollbar macOS fades out.
 const strip = await page.evaluate(() => {
@@ -138,13 +138,13 @@ const strip = await page.evaluate(() => {
     selected: tabs.filter(t => t.getAttribute('aria-selected') === 'true').length,
     // Roving tabindex: one stop for Tab, arrows move within the strip.
     stops: tabs.filter(t => t.tabIndex === 0).length,
-    // Fixed-width cells, so a longer label would be cut rather than wrap.
+    // Nowrap cells, so a longer label would be cut rather than wrap.
     clipped: tabs.filter(t => t.scrollWidth > t.clientWidth).map(t => t.textContent),
     shown: [...document.querySelectorAll('.hnes-settings-pane')]
       .filter(p => getComputedStyle(p).display !== 'none').length,
   };
 });
-check('the panel is tabbed', strip.labels === 'Look Reading Sections Storage', strip.labels);
+check('the panel is tabbed', strip.labels === 'Look Reading Keys Sections Storage', strip.labels);
 check('one pane at a time', strip.shown === 1 && strip.selected === 1,
   `${strip.shown} shown, ${strip.selected} selected`);
 check('one tab stop for the strip', strip.stops === 1, `${strip.stops} stops`);
@@ -153,7 +153,7 @@ check('no tab label clipped', strip.clipped.length === 0, strip.clipped.join(' '
 // The point of the change, and the thing a new setting can quietly undo: every
 // pane has to fit the box, or the panel is back behind the scrollbar.
 const fit = [];
-for (const id of ['look', 'reading', 'sections', 'storage']) {
+for (const id of ['look', 'reading', 'keys', 'sections', 'storage']) {
   await openTab(id);
   fit.push({ id, over: await page.evaluate(() => {
     // The panes, not the panel: the panel is overflow:hidden so the strip and
@@ -323,7 +323,7 @@ const reloadShown = () => page.evaluate(() => {
 // that is always up says nothing, which is the failure mode here.
 check('a repaint asks for no reload', await reloadShown() === false);
 
-await openTab('reading');
+await openTab('keys');
 await page.click('[data-hnes-opt="hnesKeys:on"]');
 await page.waitForTimeout(200);
 check('a switch flips', await page.evaluate(() =>
@@ -374,7 +374,7 @@ await page.waitForTimeout(200);
 check('h is off with the shortcuts', await panelDisplay() === 'none');
 
 await page.click('.hnes-settings-host > a');
-await openTab('reading');
+await openTab('keys');
 await page.click('[data-hnes-opt="hnesKeys:on"]');   // back on
 await page.keyboard.press('Escape');
 await page.waitForTimeout(150);

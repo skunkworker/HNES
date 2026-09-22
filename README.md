@@ -40,16 +40,28 @@ Features
   * c - View comments in a new tab
   * b - Open both the comments and the story in new tabs
   * h - Open the settings panel
+  * / - Search
+  * ? - List these keys
+* Keyboard controls on comment pages, under the same switch:
+  * j / k - Next / previous comment
+  * Shift+J / Shift+K - Next / previous comment at the same depth
+  * Enter - Fold or unfold the comment
+  * r - Reply to the comment
+  * Esc - Clear the comment highlight
+  * /, ? and h work here too
+* Fold a comment by clicking the line to the left of its replies
+* A "Fold all" button above a thread folds or unfolds every top-level thread
 * Tag users
 
 Settings
 --------
-The gear at the right of the header, in four tabs:
+The gear at the right of the header, in five tabs:
 
 * **Look** - theme (auto, light, dark), view (comfortable, compact, flow), and
   five palettes
-* **Reading** - new-comment highlighting, hckrnews.com unread counts, the
-  formatting bar over comment boxes, and the keyboard shortcuts
+* **Reading** - new-comment highlighting, hckrnews.com unread counts, and the
+  formatting bar over comment boxes
+* **Keys** - the keyboard shortcuts switch, and the list of keys
 * **Sections** - which of Hacker News' fourteen section pages are header tabs
   and which stay under "more"
 * **Storage** - how much the extension is holding, a way to clear collapsed

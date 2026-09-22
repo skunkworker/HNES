@@ -514,12 +514,74 @@ class HNComments {
     }
   }
 
-  collapse(c) {
-    c.isCollapsed = !c.isCollapsed;
+  // State and markup only, no write: fold-all flips many comments and stores once.
+  setCollapsed(c, to) {
+    c.isCollapsed = to;
     c.isDirty = true;
-    c.el.classList.toggle('collapsed', c.isCollapsed);
-    c.collapserEl.setAttribute('aria-expanded', c.isCollapsed ? 'false' : 'true');
+    c.el.classList.toggle('collapsed', to);
+    c.collapserEl.setAttribute('aria-expanded', to ? 'false' : 'true');
+  }
+
+  collapse(c) {
+    this.setCollapsed(c, !c.isCollapsed);
     this.storeMeta();
+    this.syncFoldAll();
+  }
+
+  // For callers holding an element rather than a node: the keys and the spine.
+  collapseById(id) {
+    const c = this.nodeMap && this.nodeMap[id];
+    if (c && c.el) this.collapse(c);
+  }
+
+  /*
+   * Folds every top-level thread, or unfolds them all once none is open.
+   * Only nodes that change are touched, so an unfold does not write a
+   * stored entry for every comment that was never folded.
+   */
+  foldAll() {
+    const top = this.nodeMap.root.children,
+          to = top.some(c => !c.isCollapsed);
+    top.forEach(c => { if (!!c.isCollapsed !== to) this.setCollapsed(c, to); });
+    this.storeMeta();
+    this.syncFoldAll();
+  }
+
+  // The button names what it will do next, so it follows single folds too.
+  syncFoldAll() {
+    if (!this.foldAllEl) return;
+    const open = this.nodeMap.root.children.some(c => !c.isCollapsed);
+    this.foldAllEl.textContent = open ? 'Fold all' : 'Unfold all';
+  }
+
+  /*
+   * One button above the tree. Left out where no top-level comment has
+   * replies: folding a flat list only hides the text a reader came for.
+   */
+  addFoldAll(container) {
+    if (!this.nodeMap.root.children.some(c => c.children.length)) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'hnes-fold-all';
+    btn.addEventListener('click', () => this.foldAll());
+    container.parentNode.insertBefore(btn, container);
+    this.foldAllEl = btn;
+    this.syncFoldAll();
+  }
+
+  /*
+   * The spine's hit strip is a ::before on the .replies box, over its margin,
+   * border and padding. A click there targets the box itself; so does a
+   * click in the gap between two replies, which is why x is checked too.
+   */
+  onSpineClick(e) {
+    const box = e.target;
+    if (!(box instanceof HTMLElement) || !box.classList.contains('replies')) return;
+    const cs = getComputedStyle(box),
+          spine = parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft);
+    if (e.clientX - box.getBoundingClientRect().left > spine) return;
+    // The template's stray </div> leaves .replies a direct child of its comment.
+    if (box.parentElement) this.collapseById(box.parentElement.id);
   }
 
   getMeta() {
@@ -591,7 +653,10 @@ class HNComments {
           commentsContainer.id = 'hnes-comments';
 
           this.renderComments(this.nodeMap.root.children, commentsContainer);
+          // One listener for every spine, rather than one per comment.
+          commentsContainer.addEventListener('click', e => this.onSpineClick(e));
           commentTree.replaceWith(commentsContainer);
+          this.addFoldAll(commentsContainer);
         } catch (e) {
           // Nothing has replaced commentTree yet, so the failsafe still has
           // something to unhide.
@@ -741,6 +806,7 @@ var HN = {
           }
 
           HN.hnComments = new HNComments(HN.currentItemId());
+          HN.init_keys(HN.commentKey);
           HN.doCommentsList(pathname, track_comments);
         }
         else if (pathname == '/favorites' ||
@@ -765,6 +831,7 @@ var HN = {
           }
 
           HN.hnComments = new HNComments(0);
+          HN.init_keys(HN.commentKey);
           HN.doCommentsList(pathname, track_comments);
         }
 /*        else if (pathname == '/newcomments' ||
@@ -1949,7 +2016,7 @@ var HN = {
     doPostsList: function() {
       $("body").attr("id", "index-body");
 
-      HN.init_keys();
+      HN.init_keys(HN.indexKey);
 
       //HN.removeUpvotes();
       //with upvotes, the 'more' link needs to be shifted 1 more col
@@ -2819,18 +2886,13 @@ var HN = {
      * so turning shortcuts off in one tab is honoured by every open tab at the
      * next keystroke rather than at its next load. It costs a cached lookup per
      * keydown, on a handler that already runs on every keydown.
+     *
+     * `onKey` is the page's own set: index or thread. The guard and the keys
+     * every page shares (`/`, `?`, `h`) live here once, so the two sets
+     * cannot drift on what counts as typing.
      */
-    init_keys: function(){
-        var j = 74, // Next Item
-            k = 75, // Previous Item
-            o = 79, // Open Story
-            p = 80, // View Comments
-            h = 72, // Open Help
-            l = 76, // New tab
-            c = 67, // Comments in new tab
-            b = 66, // Open comments and link in new tab
-            slash = 191, // Search; with shift it is `?`, the overlay listing all of these
-            shiftKey = 16; // allow modifier
+    init_keys: function(onKey){
+        var h = 72; // Open Help
         $(document).keydown(function(e){
           // Typing is not navigation. This used to check one flag set by the
           // search box's own focus handler, which left every comment box and
@@ -2843,21 +2905,14 @@ var HN = {
           if (el instanceof HTMLElement &&
               (el.isContentEditable ||
                /^(?:INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
-          if (e.ctrlKey || !HNESModes.on('hnesKeys')) return;
+          // Cmd and Alt too: Cmd+R is a reload, not a reply.
+          if (e.ctrlKey || e.metaKey || e.altKey || !HNESModes.on('hnesKeys')) return;
 
-          if (e.which == j) {
-            HN.next_story();
-          } else if (e.which == k) {
-            HN.previous_story();
-          } else if (e.which == l) {
-            HN.open_story_in_new_tab();
-          } else if (e.which == o) {
-            HN.open_story_in_current_tab();
-          } else if (e.which == p) {
-            HN.open_comments_in_current_tab();
-          } else if (e.which == slash && e.shiftKey) {
+          // `/` and `?` by the character typed, not keycode 191 plus Shift:
+          // on many layouts `?` is not Shift and the slash key.
+          if (e.key == '?') {
             HN.toggleKeyHelp();
-          } else if (e.which == slash) {
+          } else if (e.key == '/') {
             // Stopped, or the `/` lands in the field it just focused — and in
             // Firefox it opens quick find as well.
             e.preventDefault();
@@ -2866,11 +2921,124 @@ var HN = {
             // The help this key was bound to was never written; the panel lists
             // these bindings, so it is the screen the binding always meant.
             if (HN.openSettings) HN.openSettings();
-          } else if (e.which == b) {
-            HN.open_comments_in_new_tab();
-            HN.open_story_in_new_tab();
+          } else {
+            onKey(/** @type {*} */ (e));
           }
         })
+    },
+
+    /** @param {KeyboardEvent} e */
+    indexKey: function(e) {
+        var j = 74, // Next Item
+            k = 75, // Previous Item
+            o = 79, // Open Story
+            p = 80, // View Comments
+            l = 76, // New tab
+            c = 67, // Comments in new tab
+            b = 66; // Open comments and link in new tab
+        if (e.which == j) {
+          HN.next_story();
+        } else if (e.which == k) {
+          HN.previous_story();
+        } else if (e.which == l) {
+          HN.open_story_in_new_tab();
+        } else if (e.which == o) {
+          HN.open_story_in_current_tab();
+        } else if (e.which == p) {
+          HN.open_comments_in_current_tab();
+        } else if (e.which == b) {
+          HN.open_comments_in_new_tab();
+          HN.open_story_in_new_tab();
+        }
+    },
+
+    /*
+     * Thread keys. No voting keys: `u` beside `j` is one slip from a vote
+     * that cannot be taken back (upstream-features.md, note 3).
+     */
+    /** @param {KeyboardEvent} e */
+    commentKey: function(e) {
+        var key = e.key.toLowerCase();
+        if (key == 'j' || key == 'k') {
+          // Shift is read off shiftKey, not off 'J', so Caps Lock does not
+          // turn a plain j into a sibling jump.
+          HN.stepComment(key == 'j' ? 1 : -1, e.shiftKey);
+        } else if (e.key == 'Enter') {
+          // A focused link or button keeps its own Enter.
+          var t = e.target;
+          if (t instanceof Element && t.closest('a, button')) return;
+          if (!HN.currentComment) return;
+          e.preventDefault();
+          // Fold-all may have hidden it; act on the comment still on screen.
+          var shown = HN.shownComment(HN.currentComment);
+          HN.setCurrentComment(shown);
+          HN.hnComments.collapseById(shown.id);
+        } else if (key == 'r' && !e.shiftKey) {
+          HN.replyToCurrent();
+        } else if (e.key == 'Escape') {
+          HN.setCurrentComment(null);
+        }
+    },
+
+    /** @type {HTMLElement | null} */
+    currentComment: null,
+
+    /*
+     * A comment inside a folded thread is off screen, so it cannot be the
+     * place j/k start from. The outermost folded ancestor stands in for it.
+     */
+    /** @param {HTMLElement} el */
+    shownComment: function(el) {
+      var up;
+      while (el.parentElement &&
+             (up = el.parentElement.closest('.hnes-comment.collapsed'))) {
+        el = /** @type {HTMLElement} */ (up);
+      }
+      return el;
+    },
+
+    /*
+     * Plain j/k walk the comments on screen in reading order; Shift walks
+     * replies at the same depth. The plain walk is O(n) per press, which is
+     * a few thousand nodes at worst.
+     */
+    /** @param {number} dir @param {boolean} sibling */
+    stepComment: function(dir, sibling) {
+      var cur = HN.currentComment && document.contains(HN.currentComment)
+                ? HN.shownComment(HN.currentComment) : null;
+      var next;
+      if (!cur) {
+        next = document.querySelector('#hnes-comments .hnes-comment');
+      } else if (sibling) {
+        next = dir > 0 ? cur.nextElementSibling : cur.previousElementSibling;
+      } else {
+        var shown = Array.from(document.querySelectorAll('#hnes-comments .hnes-comment'))
+          .filter(function(c) { return !(c.parentElement && c.parentElement.closest('.hnes-comment.collapsed')); });
+        next = shown[shown.indexOf(cur) + dir];
+      }
+      if (next instanceof HTMLElement) HN.setCurrentComment(next);
+    },
+
+    /** @param {HTMLElement | null} el */
+    setCurrentComment: function(el) {
+      if (HN.currentComment) HN.currentComment.classList.remove('hnes-current-comment');
+      HN.currentComment = el;
+      if (!el) return;
+      el.classList.add('hnes-current-comment');
+      // The header, not the comment: a comment box holds its whole subtree,
+      // and 'nearest' will not scroll a box taller than the screen.
+      var head = el.querySelector(':scope > header') || el;
+      // Same failsafe as the index j/k (polish.md 3.4).
+      var still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      head.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+    },
+
+    // The comment's own reply link, which leads to HN's /reply page.
+    replyToCurrent: function() {
+      if (!HN.currentComment) return;
+      var link = HN.currentComment.querySelector(':scope > section.body > footer > a.reply');
+      var href = link && link.getAttribute('href');
+      if (href) window.location.href = href;
     },
 
     open_story_in_current_tab: function() {

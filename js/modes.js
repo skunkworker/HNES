@@ -57,9 +57,11 @@
   /* The bindings hn.js has always had. `h` opened a help screen that was never
      written — the line was commented out where it was bound — so it opens the
      panel this list is drawn in, which is the help it was reaching for. */
+  /* j and k do both jobs, so they are listed once with both meanings. The
+     rest after them only work on a comment page. */
   var KEYS = [
-    { id: 'j', label: 'Next story' },
-    { id: 'k', label: 'Previous story' },
+    { id: 'j', label: 'Next story, or next comment' },
+    { id: 'k', label: 'Previous story, or previous comment' },
     { id: 'o', label: 'Open the story' },
     { id: 'l', label: 'Open the story in a new tab' },
     { id: 'p', label: 'Open the comments' },
@@ -67,7 +69,12 @@
     { id: 'b', label: 'Open both in new tabs' },
     { id: 'h', label: 'Open these settings' },
     { id: '/', label: 'Search' },
-    { id: '?', label: 'Show this list' }
+    { id: '?', label: 'Show this list' },
+    { id: 'Shift+J', label: 'Next comment at the same depth' },
+    { id: 'Shift+K', label: 'Previous comment at the same depth' },
+    { id: 'Enter', label: 'Fold or unfold the comment' },
+    { id: 'r', label: 'Reply to the comment' },
+    { id: 'Esc', label: 'Clear the comment highlight' }
   ];
 
   var ON_OFF = [{ id: 'on' }, { id: 'off' }];
@@ -144,7 +151,10 @@
    */
   var TABS = [
     { id: 'look',     label: 'Look',     groups: ['Theme', 'View', 'Palette'] },
-    { id: 'reading',  label: 'Reading',  groups: ['Reading', 'Writing', 'Keyboard'] },
+    { id: 'reading',  label: 'Reading',  groups: ['Reading', 'Writing'] },
+    /* Its own pane since the thread keys took the list to fifteen rows,
+       which pushed Reading 116px past the box. */
+    { id: 'keys',     label: 'Keys',     groups: ['Keyboard'] },
     { id: 'sections', label: 'Sections', groups: ['Sections'] },
     { id: 'storage',  label: 'Storage',  groups: ['Storage'] }
   ];
