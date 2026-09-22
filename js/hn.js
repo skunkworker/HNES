@@ -160,6 +160,10 @@ var CommentTracker = {
 }
 
 var unvoteImg = chrome.runtime.getURL("images/unvote.gif");
+// The tag icon is a CSS mask. CSS cannot name the extension's own URL in both
+// browsers (Firefox's is moz-extension:// plus a per-install id), so JS does.
+document.documentElement.style.setProperty('--hnes-tag-icon',
+  `url("${chrome.runtime.getURL('images/tag.svg')}")`);
 
 class HNComments {
   constructor(storyId) {
@@ -180,7 +184,7 @@ class HNComments {
                     <a href="" title="User profile"></a>
                     <span class="hnes-user-score-cont noscore" title="User score">(<span class="hnes-user-score"></span>)</span>
                     <span class="hnes-tag-cont">
-                      <button type="button" class="hnes-tag" title="Tag user" aria-label="Tag user"><img class="hnes-tag-icon" alt="" aria-hidden="true"></button>
+                      <button type="button" class="hnes-tag" title="Tag user" aria-label="Tag user"><span class="hnes-tag-icon" aria-hidden="true"></span></button>
                       <span class="hnes-tagText" title="User tag"></span>
                       <input type="text" class="hnes-tagEdit" placeholder="">
                     </span>
@@ -258,16 +262,18 @@ class HNComments {
       original_poster_el.classList.add('original_poster');
     }
 
+    const hrefOf = el => el instanceof HTMLAnchorElement ? el.href : '';
+
     for (let i = 0; i < commentTables.length; i++) {
       const
         t = commentTables[i],
         id = t.parentElement.parentElement.id || t.id,
         upVoteEl = document.getElementById('up_' + id),
-        upVoteUrl = upVoteEl instanceof HTMLAnchorElement ? upVoteEl.href : '',
+        upVoteUrl = hrefOf(upVoteEl),
         downVoteEl = document.getElementById('down_' + id),
-        downVoteUrl = downVoteEl instanceof HTMLAnchorElement ? downVoteEl.href : '',
+        downVoteUrl = hrefOf(downVoteEl),
         unVoteEl = document.getElementById('un_' + id),
-        unVoteUrl = unVoteEl instanceof HTMLAnchorElement ? unVoteEl.href : '',
+        unVoteUrl = hrefOf(unVoteEl),
         isUpVoted = upVoteEl && upVoteEl.classList.contains('nosee'),
         isDownVoted = downVoteEl && downVoteEl.classList.contains('nosee'),
         replyEl = t.querySelector('.reply a'),
@@ -357,34 +363,37 @@ class HNComments {
       oddOrEven = c.level % 2 ? 'odd' : 'even',
       clone = document.importNode(this.commentTemplate.content, true),
       commentEl = /** @type {HTMLElement} */ (clone.firstElementChild),
-      upvoterEl = /** @type {HTMLElement} */ (commentEl.querySelector('.upvoter')),
-      downvoterEl = /** @type {HTMLElement} */ (commentEl.querySelector('.downvoter')),
-      unvoterEl = /** @type {HTMLElement} */ (commentEl.querySelector('.unvoter')),
-      collapserEl = /** @type {HTMLElement} */ (commentEl.querySelector('.collapser')),
-      parentEl = /** @type {HTMLAnchorElement} */ (commentEl.querySelector('.parent')),
-      authorEl = /** @type {HTMLAnchorElement} */ (commentEl.querySelector('.author a')),
-      userscoreEl = /** @type {HTMLElement} */ (commentEl.querySelector('.hnes-user-score')),
-      tagImageEl = /** @type {HTMLImageElement} */ (commentEl.querySelector('.hnes-tag-icon')),
-      tagTextEl = /** @type {HTMLElement} */ (commentEl.querySelector('.hnes-tagText')),
-      voteblockEl = /** @type {HTMLElement} */ (commentEl.querySelector('.voteblock'));
+      // The template always holds these nodes, so one cast covers every lookup.
+      // Anchor is the widest shape any of them is used as.
+      q = sel => /** @type {HTMLAnchorElement} */ (commentEl.querySelector(sel)),
+      upvoterEl = q('.upvoter'),
+      downvoterEl = q('.downvoter'),
+      unvoterEl = q('.unvoter'),
+      collapserEl = q('.collapser'),
+      parentEl = q('.parent'),
+      authorEl = q('.author a'),
+      userscoreEl = q('.hnes-user-score'),
+      tagTextEl = q('.hnes-tagText'),
+      voteblockEl = q('.voteblock'),
+      replyCountEl = q('.reply-count'),
+      upvoteEl = q('a.upvote'),
+      scoreEl = q('.score');
 
     c.el = commentEl;
     c.collapserEl = collapserEl;
 
-    tagImageEl.src = chrome.runtime.getURL('/images/tag.svg');
-
     commentEl.id = c.id;
     commentEl.classList.add(`level-${oddOrEven}`);
-    /** @type {HTMLElement} */ (commentEl.querySelector('.age')).textContent = c.age;
+    q('.age').textContent = c.age;
     if (c.descCount > 0) {
-      /** @type {HTMLElement} */ (commentEl.querySelector('.reply-count')).textContent = `(${c.descCount} repl${c.descCount == 1 ? 'y' : 'ies'})`;
+      replyCountEl.textContent = `(${c.descCount} repl${c.descCount == 1 ? 'y' : 'ies'})`;
     }
     if (c.replyUrl) {
-      /** @type {HTMLAnchorElement} */ (commentEl.querySelector('.reply')).href = c.replyUrl;
+      q('.reply').href = c.replyUrl;
     } else {
-      /** @type {HTMLElement} */ (commentEl.querySelector('.reply')).classList.add('noreply');
+      q('.reply').classList.add('noreply');
     }
-    /** @type {HTMLAnchorElement} */ (commentEl.querySelector('.permalink')).href = c.permalinkUrl;
+    q('.permalink').href = c.permalinkUrl;
     authorEl.textContent = c.username;
     authorEl.href = c.userUrl;
 
@@ -397,7 +406,7 @@ class HNComments {
     else {
       if (c.parentLinkUrl) {
         parentEl.href = c.parentLinkUrl;
-        /** @type {HTMLElement} */ (commentEl.querySelector('.reply-count')).classList.add('noreply');
+        replyCountEl.classList.add('noreply');
       } else {
         parentEl.href = `#${c.parent.id}`;
       }
@@ -409,8 +418,8 @@ class HNComments {
       authorEl.classList.add('original_poster');
     }
 
-    /** @type {HTMLAnchorElement} */ (commentEl.querySelector('a.upvote')).href = c.upVoteUrl;
-    /** @type {HTMLAnchorElement} */ (commentEl.querySelector('a.downvote')).href = c.downVoteUrl;
+    upvoteEl.href = c.upVoteUrl;
+    q('a.downvote').href = c.downVoteUrl;
 
     // hide upvotes or downvotes if there's no url in original (i.e. not logged in or not enough karma to downvote)
     if (!c.upVoteUrl) { upvoterEl.classList.add('voted') }
@@ -430,9 +439,10 @@ class HNComments {
     }
 
     if (c.storyLinkUrl) {
-      /** @type {HTMLElement} */ (commentEl.querySelector('.on-story')).classList.remove('nostory');
-      /** @type {HTMLAnchorElement} */ (commentEl.querySelector('.on-story a')).href = c.storyLinkUrl;
-      /** @type {HTMLAnchorElement} */ (commentEl.querySelector('.on-story a')).textContent = c.storyLinkText;
+      const storyEl = q('.on-story a');
+      q('.on-story').classList.remove('nostory');
+      storyEl.href = c.storyLinkUrl;
+      storyEl.textContent = c.storyLinkText;
     }
 
     if (c.commentColor) {
@@ -444,11 +454,11 @@ class HNComments {
     }
     
     if (c.score) {
-      /** @type {HTMLElement} */ (commentEl.querySelector('.score')).textContent = c.score + " by";
-      /** @type {HTMLElement} */ (commentEl.querySelector('.score')).classList.add('visible');
+      scoreEl.textContent = c.score + " by";
+      scoreEl.classList.add('visible');
     }
 
-    for (let parts = c.textParts, textContainer = /** @type {HTMLElement} */ (commentEl.querySelector('.text')), i = 0; i < parts.length; i++) {
+    for (let parts = c.textParts, textContainer = q('.text'), i = 0; i < parts.length; i++) {
       textContainer.appendChild(parts[i]);
     }
 
@@ -458,7 +468,7 @@ class HNComments {
     }, true);
 
     // ajax upvotes and increments user-specific upvote data
-    /** @type {HTMLAnchorElement} */ (commentEl.querySelector('a.upvote')).addEventListener('click', e => {
+    upvoteEl.addEventListener('click', e => {
       e.preventDefault();
       var httpRequest = new XMLHttpRequest();
       httpRequest.onload = function(e) {
@@ -504,7 +514,7 @@ class HNComments {
       httpRequest.send();
     }, true);
     
-    this.renderComments(kids, /** @type {HTMLElement} */ (commentEl.querySelector('.replies')))
+    this.renderComments(kids, q('.replies'))
     into.appendChild(clone);
   }
 
@@ -540,18 +550,20 @@ class HNComments {
    * stored entry for every comment that was never folded.
    */
   foldAll() {
-    const top = this.nodeMap.root.children,
-          to = top.some(c => !c.isCollapsed);
-    top.forEach(c => { if (!!c.isCollapsed !== to) this.setCollapsed(c, to); });
+    const to = this.anyOpen();
+    this.nodeMap.root.children.forEach(c => { if (!!c.isCollapsed !== to) this.setCollapsed(c, to); });
     this.storeMeta();
     this.syncFoldAll();
+  }
+
+  anyOpen() {
+    return this.nodeMap.root.children.some(c => !c.isCollapsed);
   }
 
   // The button names what it will do next, so it follows single folds too.
   syncFoldAll() {
     if (!this.foldAllEl) return;
-    const open = this.nodeMap.root.children.some(c => !c.isCollapsed);
-    this.foldAllEl.textContent = open ? 'Fold all' : 'Unfold all';
+    this.foldAllEl.textContent = this.anyOpen() ? 'Fold all' : 'Unfold all';
   }
 
   /*
@@ -587,7 +599,10 @@ class HNComments {
   getMeta() {
     const toStore = {};
     preorder(this.nodeMap.root, n => {
-      if (n.isDirty) toStore[n.id] = { 'isCollapsed': n.isCollapsed };
+      if (!n.isDirty) return;
+      toStore[n.id] = { 'isCollapsed': n.isCollapsed };
+      // Stored now, so the next fold writes only what changed after it.
+      n.isDirty = false;
     });
     return toStore;
   }
@@ -2236,8 +2251,6 @@ var HN = {
       var link = /** @type {HTMLAnchorElement} */ (author.querySelector('a'));
       link.href = 'user?id=' + encodeURIComponent(username);
       link.textContent = username;
-      var icon = /** @type {HTMLImageElement} */ (author.querySelector('.hnes-tag-icon'));
-      icon.src = chrome.runtime.getURL('/images/tag.svg');
       valueCell.empty().append(author);
     },
 
@@ -2922,7 +2935,7 @@ var HN = {
             // these bindings, so it is the screen the binding always meant.
             if (HN.openSettings) HN.openSettings();
           } else {
-            onKey(/** @type {*} */ (e));
+            onKey(e.originalEvent);
           }
         })
     },
@@ -2934,7 +2947,6 @@ var HN = {
             o = 79, // Open Story
             p = 80, // View Comments
             l = 76, // New tab
-            c = 67, // Comments in new tab
             b = 66; // Open comments and link in new tab
         if (e.which == j) {
           HN.next_story();
@@ -2999,7 +3011,7 @@ var HN = {
 
     /*
      * Plain j/k walk the comments on screen in reading order; Shift walks
-     * replies at the same depth. The plain walk is O(n) per press, which is
+     * replies at the same depth. The plain walk is O(n * depth) per press,
      * a few thousand nodes at worst.
      */
     /** @param {number} dir @param {boolean} sibling */
@@ -3012,12 +3024,15 @@ var HN = {
       } else if (sibling) {
         next = dir > 0 ? cur.nextElementSibling : cur.previousElementSibling;
       } else {
-        var shown = Array.from(document.querySelectorAll('#hnes-comments .hnes-comment'))
-          .filter(function(c) { return !(c.parentElement && c.parentElement.closest('.hnes-comment.collapsed')); });
+        var all = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('#hnes-comments .hnes-comment'));
+        var shown = Array.from(all).filter(function(c) { return HN.shownComment(c) === c; });
         next = shown[shown.indexOf(cur) + dir];
       }
       if (next instanceof HTMLElement) HN.setCurrentComment(next);
     },
+
+    // Built once; .matches follows the reader's setting live.
+    reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)'),
 
     /** @param {HTMLElement | null} el */
     setCurrentComment: function(el) {
@@ -3029,8 +3044,7 @@ var HN = {
       // and 'nearest' will not scroll a box taller than the screen.
       var head = el.querySelector(':scope > header') || el;
       // Same failsafe as the index j/k (polish.md 3.4).
-      var still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      head.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+      head.scrollIntoView({ block: 'nearest', behavior: HN.reducedMotion.matches ? 'auto' : 'smooth' });
     },
 
     // The comment's own reply link, which leads to HN's /reply page.
@@ -3078,7 +3092,7 @@ var HN = {
           var top = next_lem.offset().top - 10;
           // Same failsafe as the spine transition: a motion-sensitive reader
           // gets the jump, not the 200ms scroll.
-          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          if (HN.reducedMotion.matches) {
             $('html, body').scrollTop(top);
           } else {
             $('html, body').animate({ scrollTop: top }, 200);
