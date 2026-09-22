@@ -46,9 +46,9 @@ callback.
 `declare var` adds the property to globalThis, `modes.js`'s own assignment is
 checked against that declaration, so the two cannot drift silently.
 
-**It is a report, not a gate.** The first run gave 113 errors; fixing everything
-below took that to 24, and it still exits non-zero. Wiring it into a release
-check means finishing the last group first.
+**It is now a gate.** The first run gave 113 errors. The fixes below took that
+to 24, and the pass of 22 September 2026 took it to 0. A new error is a
+regression, so run it before a release.
 
 Bugs it found, all fixed:
 
@@ -88,12 +88,12 @@ Cleanup it found:
 - `false` used as a null sentinel for a jQuery object in four places. An empty
   set says the same thing and needs no special case at the point of use.
 
-What is left is **~24 null-safety findings** on the positional walks — mostly
-`querySelector(…).href` with no check. That list is the point of the exercise:
-it is the only inventory of where HN's markup is assumed, and each one needs a
-decision about what should happen when the element is missing rather than a
-mechanical fix. `degenerate.mjs` already holds the property that matters
-meanwhile — that a page this broken stays usable.
+The last 24 were null-safety findings on the positional walks. Each got a
+decision about what happens when HN's element is missing, not a mechanical
+fix. Four of them could throw on a real page: a row with no link sent `o`/`p`
+to `/undefined`, and an unrecorded vote, a missing karma count or a scoreless
+`.author` match each stopped the setup that followed. `degenerate.mjs` still
+holds the property that matters — that a page this broken stays usable.
 
 ## migration.mjs — run this before any release that changes storage
 
