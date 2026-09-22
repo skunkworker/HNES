@@ -156,12 +156,63 @@ Bug 8 says the page is unstyled. The shape to give it:
 
 Size **M**.
 
-### 2.12 Dark mode of the same screens — *unverified*
+### 2.12 Dark mode of the same screens — *done 22 Sep 2026*
 
-No dark render exists for the poll bars, the user page or the mobile header.
-The 22 August sweep covered both themes for overflow only, not for
-appearance. Re-run the sweep with screenshots in dark mode before this list
-ships, and add any defect found to this document.
+**Method.** Each HN page was fetched once from the live site, slowly, and
+cached. Renders then replayed from the cache, the way `visual-bugs.md` did.
+The pages were front, item, user, `/threads`, `/newcomments`, `/jobs`, a
+poll, `/submit` and `/login`. Four states were added: settings panel open,
+search open, keyboard focus in the header, and the formatting bar with its
+help open. That is 13 screens, in dark mode, in five palettes, at 1280px and
+390px, so 130 renders.
+
+Every render was looked at. Two scripts backed that up. One flagged text
+under 4.5:1 against its real background, light backgrounds, light borders,
+and every image. The other measured hover text and focus-ring contrast on 20
+controls.
+
+Five defects, all fixed in `style.css`:
+
+1. **Poll options were black on black.** HN wraps each option in
+   `<font color="#000000">`, which measured 1.1:1. They now use `--hnes-fg`.
+   `polish/dark/01-poll-before.png`, `-after.png`.
+2. **The header focus ring was invisible in four palettes.** The ring is
+   `--hnes-orange`. In every palette but classic, the header is that same
+   orange, so the ring measured 1.0:1 on nav pills, `more`, the gear and the
+   search icon. Header controls now use the header ink, which measured 6.9 to
+   8.4:1. `02-header-focus-*.png`.
+3. **The open search field had no visible focus ring**, for the same reason.
+   It now takes the same ring. `03-search-focus-*.png`.
+4. **The user-page pills disappeared.** In dark mode `--hnes-surface-alt`
+   comes out almost the same as the card's `--hnes-surface`. Dark mode now
+   uses `--hnes-surface-hi`, and light mode is unchanged.
+   `04-user-pills-*.png`.
+5. **The formatting help's last line was hard to read.** "No bold, headings,
+   lists…" used `--hnes-fg-subtle`, which is for punctuation only. It measured
+   3.6:1. It now uses `--hnes-fg-muted`. The same line was below 4.5:1 in
+   light mode too. `05-format-help-*.png`.
+
+One light-mode colour also leaked into dark mode. `images/tag.svg` has a
+fixed `#828282` fill. The icon now draws as a mask over `--hnes-fg-muted`, so
+it follows the theme and the palette. `06-tag-icon-*.png`.
+
+`test/tokens.mjs` gained two pairs: `fg / surface-hi` at 4.5 for the pills,
+and `fg-muted / surface-hi` at 3 for the tag icon, since it is a control and
+not text.
+
+**Checked and left alone.**
+
+- The header is bright orange in dark mode in four palettes. That is by
+  design (see `tokens.css`).
+- HN's inline `bgcolor` and the white border on the logo are either hidden
+  or sit on the header, where they read fine.
+- `( )` around domains is `--hnes-fg-subtle`, which is allowed for
+  punctuation.
+- Hover states all held 4.9:1 or more.
+
+**Found, not dark-specific, not fixed here.** Poll options still use HN's
+Verdana. The user-page pills show an underline, from HN's `<u>` inside the
+link.
 
 ---
 

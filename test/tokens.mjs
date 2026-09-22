@@ -179,6 +179,9 @@ const PAIRS = [
   ['orange / bg',        '--hnes-orange',     '--hnes-bg',      4.5, 'accent text'],
   ['orange-ink / brand', '--hnes-orange-ink', '--hnes-brand',   4.5, 'nav text on the header'],
   ['c5a / surface',      '--hnes-c5a',        '--hnes-surface', 4.5, 'least-faded comment'],
+  ['fg / surface-hi',    '--hnes-fg',         '--hnes-surface-hi', 4.5, 'user-page pills in dark, a set tag'],
+  // WCAG 1.4.11: a glyph that is a control needs 3:1, not the text floor.
+  ['fg-muted / surface-hi', '--hnes-fg-muted', '--hnes-surface-hi', 3, 'tag icon on its hover fill, not text'],
   // Not text. --hnes-fg-subtle is scoped to punctuation that carries no
   // information — "(" ")" "|" "[ ]" — and the border is a hairline. Both are
   // checked only for "still visible", see style.css.
@@ -197,7 +200,7 @@ for (const palette of PALETTES) {
       if (bad) failures.push(`${palette}/${theme} ${label} = ${v.toFixed(2)} (floor ${floor})`);
       return `${theme} ${v.toFixed(2).padStart(6)}${bad ? ' FAIL' : '     '}`;
     }).join('   ');
-    console.log(`  ${label.padEnd(20)} ${line}  ${floor === HAIRLINE ? '' : 'AA'}  ${why}`);
+    console.log(`  ${label.padEnd(22)} ${line}  ${floor < 4.5 ? '' : 'AA'}  ${why}`);
   }
 }
 console.log(failures.length
